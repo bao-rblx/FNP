@@ -1,0 +1,34 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* ── Mobile: prevent horizontal scroll without breaking position:fixed ── */
+html {
+  overflow-x: clip; /* 'clip' doesn't create a new containing block unlike 'hidden' */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ── iOS safe-area for bottom nav ── */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Floating bottom nav page wrapper ── */
+.page-with-bottom-nav {
+  padding-bottom: calc(5rem + var(--safe-bottom));
+}
+
+/* ── Better tap highlights ── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Input zoom prevention on iOS ── */
+input, select, textarea {
+  font-size: 16px !important;
+}

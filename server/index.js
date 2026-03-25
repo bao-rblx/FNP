@@ -725,6 +725,16 @@ app.delete('/api/admin/users/:id', requireAuth, requireAdmin, writeLimiter, (req
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-app.listen(PORT, () => {
-  console.log(`[fnp-api] http://localhost:${PORT}  DB: ${DB_PATH}`);
+// Serve built frontend in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(rootDir, 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+const listenPort = process.env.NODE_ENV === 'production' ? 5000 : PORT;
+app.listen(listenPort, () => {
+  console.log('[fnp-api] http://localhost:' + listenPort + '  DB: ' + DB_PATH);
 });

@@ -729,7 +729,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(rootDir, 'dist');
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => {
+  app.use((_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }

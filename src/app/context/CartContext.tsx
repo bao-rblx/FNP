@@ -177,6 +177,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const items = cart.map((item) => ({
       id: item.id,
       name: item.name,
+      nameEn: item.nameEn,
       description: item.description,
       price: item.price,
       quantity: item.quantity,

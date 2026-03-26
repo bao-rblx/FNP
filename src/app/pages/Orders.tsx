@@ -8,6 +8,7 @@ import { DesktopNav } from '../components/DesktopNav';
 import { Button } from '../components/ui/button';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { products } from '../data/products';
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -232,7 +233,7 @@ export default function Orders() {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{language === "en" && item.nameEn ? item.nameEn : item.name}</p>
+                            <p className="font-medium truncate">{language === "en" ? (item.nameEn || products.find(p => p.id === item.id)?.nameEn || item.name) : item.name}</p>
                             <p className="text-xs text-muted-foreground">
                               Qty: {item.quantity}
                             </p>

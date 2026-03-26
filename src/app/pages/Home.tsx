@@ -17,7 +17,6 @@ import { DesktopNav } from '../components/DesktopNav';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { products, type Product } from '../data/products';
-import { getOrders } from '../lib/api';
 
 const SUGGESTED_IDS = ['print-bw', 'print-color', 'print-binding', 'paper-a4'] as const;
 

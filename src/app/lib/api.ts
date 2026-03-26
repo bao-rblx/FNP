@@ -99,6 +99,7 @@ export async function patchMe(body: { name?: string; studentId?: string }): Prom
 export type OrderItemPayload = {
   id: string;
   name: string;
+  nameEn?: string;
   description?: string;
   price: number;
   quantity: number;

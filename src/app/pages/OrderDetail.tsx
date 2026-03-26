@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { products } from '../data/products';
 import { getOrder, postCancelOrder, ApiError, type ApiOrder } from '../lib/api';
 import type { CartItem, Order } from '../data/products';
 
@@ -229,7 +230,7 @@ export default function OrderDetail() {
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{language === "en" && item.nameEn ? item.nameEn : item.name}</p>
+                      <p className="font-semibold text-sm truncate">{language === "en" ? (item.nameEn || products.find(p => p.id === item.id)?.nameEn || item.name) : item.name}</p>
                       <p className="text-xs text-muted-foreground">{t.quantity}: {item.quantity}</p>
                     </div>
                     <p className="text-sm font-bold text-right shrink-0">{formatPrice(item.price * item.quantity)}</p>

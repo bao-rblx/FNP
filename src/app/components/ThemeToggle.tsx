@@ -3,6 +3,7 @@ import { useTheme } from 'next-themes';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { Button } from './ui/button';
 import { useLanguage } from '../context/LanguageContext';
+import { triggerTransition } from './TransitionOverlay';
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -22,7 +23,7 @@ export function ThemeToggle() {
         size="sm"
         variant={theme === 'light' ? 'default' : 'outline'}
         className={theme === 'light' ? 'bg-red-600 hover:bg-red-700' : ''}
-        onClick={() => setTheme('light')}
+        onClick={() => triggerTransition('theme-to-light', () => setTheme('light'))}
       >
         <Sun className="w-4 h-4 mr-1" />
         {t.themeLight}
@@ -32,7 +33,7 @@ export function ThemeToggle() {
         size="sm"
         variant={theme === 'dark' ? 'default' : 'outline'}
         className={theme === 'dark' ? 'bg-red-600 hover:bg-red-700' : ''}
-        onClick={() => setTheme('dark')}
+        onClick={() => triggerTransition('theme-to-dark', () => setTheme('dark'))}
       >
         <Moon className="w-4 h-4 mr-1" />
         {t.themeDark}
@@ -42,7 +43,7 @@ export function ThemeToggle() {
         size="sm"
         variant={theme === 'system' ? 'default' : 'outline'}
         className={theme === 'system' ? 'bg-red-600 hover:bg-red-700' : ''}
-        onClick={() => setTheme('system')}
+        onClick={() => triggerTransition('theme-to-light', () => setTheme('system'))}
       >
         <Monitor className="w-4 h-4 mr-1" />
         {t.themeSystem}

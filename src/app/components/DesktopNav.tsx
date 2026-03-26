@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { triggerTransition } from './TransitionOverlay';
 
 export function DesktopNav() {
   const location = useLocation();
@@ -63,7 +64,7 @@ export function DesktopNav() {
 
           <button
             type="button"
-            onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+            onClick={() => triggerTransition('language', () => setLanguage(language === 'vi' ? 'en' : 'vi'))}
             className="flex items-center gap-2 px-4 py-2 hover:bg-red-700 rounded-lg text-red-100 transition-colors ml-2"
             title={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
           >
@@ -85,7 +86,7 @@ function NavThemeToggle() {
   return (
     <button
       type="button"
-      onClick={() => setTheme(dark ? 'light' : 'dark')}
+      onClick={() => triggerTransition(dark ? 'theme-to-light' : 'theme-to-dark', () => setTheme(dark ? 'light' : 'dark'))}
       className="flex items-center justify-center p-2 rounded-lg hover:bg-red-700 text-red-100 transition-colors"
       aria-label={dark ? 'Light mode' : 'Dark mode'}
     >

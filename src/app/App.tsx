@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { Toaster } from './components/ui/sonner';
+import { TransitionOverlay } from './components/TransitionOverlay';
 import { ActivitySoundBridge } from './components/ActivitySoundBridge';
 import { ChatWidget } from './components/ChatWidget';
 import { BottomNav } from './components/BottomNav';
@@ -93,6 +94,7 @@ function AppContent() {
           </motion.div>
         )}
       </AnimatePresence>
+      <TransitionOverlay />
       <ActivitySoundBridge />
       <CartProvider>
         <RouterProvider router={router} />
@@ -106,7 +108,7 @@ function AppContent() {
 export default function App() {
   return (
     <LanguageProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <AuthProvider>
           <AppContent />
         </AuthProvider>

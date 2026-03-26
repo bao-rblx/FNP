@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { useTheme } from 'next-themes';
 import { Sun, Moon } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { triggerTransition } from './TransitionOverlay';
 
 interface HeaderProps {
   title: string;
@@ -37,14 +38,14 @@ export function Header({ title, showBack = false }: HeaderProps) {
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+            onClick={() => triggerTransition('language', () => setLanguage(language === 'vi' ? 'en' : 'vi'))}
             className="text-[11px] font-bold px-2 py-1 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground transition-colors"
           >
             {language === 'vi' ? 'EN' : 'VI'}
           </button>
           <button
             type="button"
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            onClick={() => triggerTransition(resolvedTheme === 'dark' ? 'theme-to-light' : 'theme-to-dark', () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'))}
             className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground transition-colors"
           >
             {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

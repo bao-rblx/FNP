@@ -33,7 +33,7 @@ export default function OrderDetail() {
   const { user, authReady } = useAuth();
   const navigate = useNavigate();
   const { refreshOrders, reorderFromOrder } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelNote, setCancelNote] = useState('');
@@ -229,7 +229,7 @@ export default function OrderDetail() {
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{item.name}</p>
+                      <p className="font-semibold text-sm truncate">{language === "en" && item.nameEn ? item.nameEn : item.name}</p>
                       <p className="text-xs text-muted-foreground">{t.quantity}: {item.quantity}</p>
                     </div>
                     <p className="text-sm font-bold text-right shrink-0">{formatPrice(item.price * item.quantity)}</p>

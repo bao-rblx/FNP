@@ -1,8 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Clock,
-  FileText,
-  MapPin,
+  FileText,
   Package,
   Percent,
   Printer,
@@ -26,12 +25,6 @@ export default function Home() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [hasOrders, setHasOrders] = useState(false);
-
-  useEffect(() => {
-    if (!user) { setHasOrders(false); return; }
-    getOrders().then(orders => setHasOrders(orders.length > 0)).catch(() => {});
-  }, [user]);
 
   const categories = [
     {
@@ -331,21 +324,6 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-
-              {hasOrders && (
-              <motion.div whileHover={{ scale: 1.02 }} className="bg-card rounded-2xl p-5 shadow-sm border border-border flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-red-100 text-red-600 shrink-0">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="font-semibold text-base">{t.pickup}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t.libraryA}</p>
-                  <Link to="/checkout" className="text-sm text-red-600 font-medium mt-2 inline-flex items-center gap-1">
-                    {t.checkout} <span aria-hidden>→</span>
-                  </Link>
-                </div>
-              </motion.div>
-              )}
             </div>
           </motion.div>
         </div>

@@ -12,7 +12,7 @@ import { useLanguage } from '../context/LanguageContext';
 export default function Orders() {
   const navigate = useNavigate();
   const { orders, ordersLoading, ordersError, refreshOrders, reorderFromOrder } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [filter, setFilter] = useState<'all' | 'pending' | 'processing' | 'completed' | 'cancelled'>('all');
 
   useEffect(() => {
@@ -232,7 +232,7 @@ export default function Orders() {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{item.name}</p>
+                            <p className="font-medium truncate">{language === "en" && item.nameEn ? item.nameEn : item.name}</p>
                             <p className="text-xs text-muted-foreground">
                               Qty: {item.quantity}
                             </p>

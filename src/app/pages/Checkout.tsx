@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ApiError } from '../lib/api';
+import { translateUnit } from '../data/products';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -24,7 +25,7 @@ import confetti from 'canvas-confetti';
 export default function Checkout() {
   const { user, authReady } = useAuth();
   const { cart, getCartTotal, placeOrder, discountRate, discountCode, applyPromoCode } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const hasPickupOnly = cart.some(item => item.pickupOnly);
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>(hasPickupOnly ? 'pickup' : 'pickup');
@@ -60,7 +61,7 @@ export default function Checkout() {
     e.preventDefault();
 
     if (finalTotal < 5000) {
-      toast.error('Minimum order value is 5,000đ');
+      toast.error(language === 'en' ? 'Minimum order value is 5,000đ' : 'Giá trị đơn hàng tối thiểu là 5.000đ');
       return;
     }
 
@@ -201,7 +202,7 @@ export default function Checkout() {
                         <p className="text-sm text-muted-foreground mb-2">{t.deliveryDesc}</p>
                         {hasPickupOnly && (
                           <p className="text-xs text-red-500 mt-1 font-semibold">
-                            Not available for strictly in-person services
+                            {t.pickupOnlyWarning}
                           </p>
                         )}
                         {deliveryMethod === 'delivery' && !hasPickupOnly && (
@@ -216,24 +217,24 @@ export default function Checkout() {
                             />
                             
                             <div className="bg-background dark:bg-background/50 p-3 rounded-lg border border-border">
-                              <p className="text-sm font-medium mb-2">Delivery Speed</p>
+                              <p className="text-sm font-medium mb-2">{t.deliverySpeed}</p>
                               <select
                                 value={deliveryTier}
                                 onChange={(e) => setDeliveryTier(e.target.value as any)}
                                 className="w-full mb-3 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-transparent"
                               >
-                                <option value="saver">Saver Delivery (10,000đ)</option>
-                                <option value="standard">Standard Delivery (15,000đ)</option>
-                                <option value="priority">Priority Delivery (30,000đ)</option>
+                                <option value="saver">{t.saverDelivery}</option>
+                                <option value="standard">{t.standardDelivery}</option>
+                                <option value="priority">{t.priorityDelivery}</option>
                               </select>
 
-                              <p className="text-sm font-medium mb-2">Schedule Time</p>
+                              <p className="text-sm font-medium mb-2">{t.scheduleTime}</p>
                               <select
                                 value={scheduleTime}
                                 onChange={(e) => setScheduleTime(e.target.value)}
                                 className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-transparent"
                               >
-                                <option value="ASAP">As soon as possible</option>
+                                <option value="ASAP">{t.asap}</option>
                                 <option value="10:00 AM">10:00 AM</option>
                                 <option value="12:00 PM">12:00 PM</option>
                                 <option value="2:00 PM">2:00 PM</option>
@@ -340,8 +341,8 @@ export default function Checkout() {
                       type="button"
                       onClick={() => {
                         const ok = applyPromoCode(promoInput);
-                        if (ok) toast.success('Promo code applied!');
-                        else toast.error('Invalid promo code');
+                        if (ok) toast.success(t.promoApplied);
+                        else toast.error(t.promoInvalid);
                       }}
                       className="px-4 py-2 bg-muted/50 text-muted-foreground rounded-lg text-sm font-medium hover:bg-accent"
                     >
@@ -358,7 +359,7 @@ export default function Checkout() {
                       <div key={item.id} className="text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">
-                            {item.name} × {item.quantity}
+                            {language === "en" && item.nameEn ? item.nameEn : item.name} × {item.quantity}
                           </span>
                           <span>{formatPrice(item.price * item.quantity)}</span>
                         </div>
@@ -418,7 +419,7 @@ export default function Checkout() {
                   </motion.button>
                   {finalTotal < 5000 && (
                     <p className="text-sm text-red-500 text-center font-medium mt-3 bg-red-50 dark:bg-red-500/10 py-2 rounded-lg">
-                      Minimum order value is 5,000đ
+                      {language === "en" ? "Minimum order value is 5,000đ" : "Giá trị đơn hàng tối thiểu là 5.000đ"}
                     </p>
                   )}
 
@@ -454,7 +455,7 @@ export default function Checkout() {
               </motion.button>
               {finalTotal < 5000 && (
                 <p className="text-sm text-red-500 text-center font-medium mt-2">
-                  Minimum order value is 5,000đ
+                  {language === "en" ? "Minimum order value is 5,000đ" : "Giá trị đơn hàng tối thiểu là 5.000đ"}
                 </p>
               )}
             </div>

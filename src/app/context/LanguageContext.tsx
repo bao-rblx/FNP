@@ -247,6 +247,17 @@ interface Translations {
   towerI: string;
   mainGate: string;
   
+  deliverySpeed: string;
+  scheduleTime: string;
+  asap: string;
+  saverDelivery: string;
+  standardDelivery: string;
+  priorityDelivery: string;
+  pickupOnlyWarning: string;
+  promoApplied: string;
+  promoInvalid: string;
+  hasOrderPickupHint: string;
+
   // Common
   back: string;
   close: string;
@@ -491,6 +502,17 @@ const translations: Record<Language, Translations> = {
     towerI: 'Tòa I - Tầng Trệt',
     mainGate: 'Cổng trường Dương Quảng Hàm',
     
+    deliverySpeed: 'Tốc Độ Giao Hàng',
+    scheduleTime: 'Lên Lịch Giao',
+    asap: 'Càng sớm càng tốt',
+    saverDelivery: 'Tiết kiệm (10.000đ)',
+    standardDelivery: 'Tiêu chuẩn (15.000đ)',
+    priorityDelivery: 'Ưu tiên (30.000đ)',
+    pickupOnlyWarning: 'Không khả dụng cho dịch vụ tại quầy',
+    promoApplied: 'Đã áp dụng mã giảm giá!',
+    promoInvalid: 'Mã giảm giá không hợp lệ',
+    hasOrderPickupHint: 'Bấm để đến thanh toán →',
+
     back: 'Quay lại',
     close: 'Đóng',
     save: 'Lưu',
@@ -732,6 +754,17 @@ const translations: Record<Language, Translations> = {
     towerI: 'Tower I - Ground Floor',
     mainGate: 'Duong Quang Ham Gate',
     
+    deliverySpeed: 'Delivery Speed',
+    scheduleTime: 'Schedule Time',
+    asap: 'As soon as possible',
+    saverDelivery: 'Saver Delivery (10,000đ)',
+    standardDelivery: 'Standard Delivery (15,000đ)',
+    priorityDelivery: 'Priority Delivery (30,000đ)',
+    pickupOnlyWarning: 'Not available for strictly in-person services',
+    promoApplied: 'Promo code applied!',
+    promoInvalid: 'Invalid promo code',
+    hasOrderPickupHint: 'Tap to go to checkout →',
+
     back: 'Back',
     close: 'Close',
     save: 'Save',

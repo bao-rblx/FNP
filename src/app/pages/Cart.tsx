@@ -9,11 +9,12 @@ import { QuantityInput } from '../components/QuantityInput';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { translateUnit } from '../data/products';
 
 export default function Cart() {
   const { user } = useAuth();
   const { cart, updateQuantity, removeFromCart, getCartTotal, discountRate } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const finalTotal = getCartTotal() * (1 - discountRate);
 
@@ -91,7 +92,7 @@ export default function Cart() {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-2">
-                        <h3 className="font-medium text-sm md:text-base">{item.name}</h3>
+                        <h3 className="font-medium text-sm md:text-base">{language === "en" && item.nameEn ? item.nameEn : item.name}</h3>
                         <button
                           onClick={() => removeFromCart(item.id)}
                           className="text-red-500 hover:text-red-600 p-1 flex-shrink-0"
@@ -99,7 +100,7 @@ export default function Cart() {
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
-                      <p className="text-muted-foreground text-xs md:text-sm mb-2">{item.unit}</p>
+                      <p className="text-muted-foreground text-xs md:text-sm mb-2">{translateUnit(item.unit, language)}</p>
                       
                       {/* Show uploaded files if printing service */}
                       {item.category === 'printing' && item.files && item.files.length > 0 && (

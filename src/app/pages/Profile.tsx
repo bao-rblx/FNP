@@ -180,7 +180,6 @@ export default function Profile() {
         { icon: Zap, text: '20% discount on all orders', textVi: 'Giảm 20% tất cả đơn hàng' },
         { icon: Crown, text: 'VIP customer service', textVi: 'Dịch vụ khách hàng VIP' },
         { icon: Award, text: 'Exclusive member events', textVi: 'Sự kiện độc quyền' },
-        { icon: Gift, text: 'Free monthly prints (50 pages)', textVi: 'In miễn phí hàng tháng (50 trang)' },
       ]
     },
   ];
@@ -293,8 +292,8 @@ export default function Profile() {
                       ? 'Bạn đã đạt hạng cao nhất — cảm ơn bạn đã đồng hành!'
                       : 'Top tier reached — thank you for printing with us!'
                     : language === 'vi'
-                      ? `${t.pointsToNext} ${new Intl.NumberFormat('vi-VN').format(nextTierAt)}đ để lên hạng tiếp theo`
-                      : `${new Intl.NumberFormat('vi-VN').format(nextTierAt)}đ ${t.pointsToNext} next tier`}
+                      ? `${t.pointsToNext} ${new Intl.NumberFormat('vi-VN').format(nextTierAt - spent)}đ để lên hạng tiếp theo`
+                      : `${new Intl.NumberFormat('vi-VN').format(nextTierAt - spent)}đ ${t.pointsToNext} next tier`}
                 </p>
               </div>
 

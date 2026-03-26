@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Clock,
   FileText,
@@ -18,6 +18,7 @@ import { DesktopNav } from '../components/DesktopNav';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { products, type Product } from '../data/products';
+import { getOrders } from '../lib/api';
 
 const SUGGESTED_IDS = ['print-bw', 'print-color', 'print-binding', 'paper-a4'] as const;
 
@@ -25,6 +26,12 @@ export default function Home() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [hasOrders, setHasOrders] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setHasOrders(false); return; }
+    getOrders().then(orders => setHasOrders(orders.length > 0)).catch(() => {});
+  }, [user]);
 
   const categories = [
     {
@@ -325,6 +332,7 @@ export default function Home() {
                 </div>
               </div>
 
+              {hasOrders && (
               <motion.div whileHover={{ scale: 1.02 }} className="bg-card rounded-2xl p-5 shadow-sm border border-border flex items-start gap-4">
                 <div className="p-3 rounded-xl bg-red-100 text-red-600 shrink-0">
                   <MapPin className="w-6 h-6" />
@@ -337,6 +345,7 @@ export default function Home() {
                   </Link>
                 </div>
               </motion.div>
+              )}
             </div>
           </motion.div>
         </div>

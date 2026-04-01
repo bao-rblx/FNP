@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { CartItem, Product, ProductVariant, Order, OrderNotificationRow, products } from '../data/products';
-import { getOrders, postOrder, getToken, type ApiOrder } from '../lib/api';
+import { CartItem, Product, ProductVariant, Order, OrderNotificationRow } from '../data/products';
+import { getOrders, postOrder, postGuestOrder, getToken, postValidateCoupon, type ApiOrder } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 function toOrder(o: ApiOrder): Order {
@@ -14,6 +14,8 @@ function toOrder(o: ApiOrder): Order {
     deliveryAddress: o.deliveryAddress,
     pickupLocation: o.pickupLocation,
     paymentMethod: o.paymentMethod,
+    deliveryDate: o.deliveryDate,
+    deliveryTime: o.deliveryTime,
     cancelReason: o.cancelReason,
     notifications: o.notifications as OrderNotificationRow[] | undefined,
   };
@@ -35,6 +37,20 @@ interface CartContextType {
     pickupLocation?: string,
     paymentMethod?: string,
     estimatedTime?: string,
+    deliveryDate?: string,
+    deliveryTime?: string,
+    total?: number,
+  ) => Promise<string>;
+  placeGuestOrder: (
+    guestName: string,
+    guestPhone: string,
+    deliveryAddress?: string,
+    pickupLocation?: string,
+    paymentMethod?: string,
+    estimatedTime?: string,
+    deliveryDate?: string,
+    deliveryTime?: string,
+    total?: number,
   ) => Promise<string>;
   getCartTotal: () => number;
   getCartItemCount: () => number;
@@ -42,7 +58,7 @@ interface CartContextType {
   reorderFromOrder: (order: Order) => void;
   discountCode: string;
   discountRate: number;
-  applyPromoCode: (code: string) => boolean;
+  applyPromoCode: (code: string) => Promise<boolean>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -56,20 +72,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [discountCode, setDiscountCode] = useState<string>('');
   const [discountRate, setDiscountRate] = useState<number>(0);
 
-  const applyPromoCode = (code: string) => {
+  const applyPromoCode = async (code: string) => {
     const c = code.trim().toUpperCase();
-    if (c === 'FLASH10') {
-      setDiscountCode(c);
-      setDiscountRate(0.10);
-      return true;
-    } else if (c === 'CLB5') {
-      setDiscountCode(c);
-      setDiscountRate(0.05);
-      return true;
+    if (!c) {
+      setDiscountCode('');
+      setDiscountRate(0);
+      return false;
     }
-    setDiscountCode('');
-    setDiscountRate(0);
-    return false;
+    try {
+      const resp = await postValidateCoupon(c, getCartTotal());
+      setDiscountCode(resp.code);
+      setDiscountRate(resp.discountPercent / 100);
+      return true;
+    } catch {
+      setDiscountCode('');
+      setDiscountRate(0);
+      return false;
+    }
   };
 
   const refreshOrders = useCallback(async () => {
@@ -106,12 +125,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ? { ...product, id: `${product.id}-${variant.id}`, name: `${product.name} - ${variant.name}`, price: variant.price }
         : product;
       const existingItem = prevCart.find((item) => item.id === actualProduct.id);
+      
+      const newTotalQty = existingItem ? existingItem.quantity + quantity : quantity;
+      if (product.stockLimit != null && product.stockLimit > 0 && newTotalQty > product.stockLimit) {
+         return prevCart;
+      }
+
       if (existingItem) {
         return prevCart.map((item) =>
           item.id === actualProduct.id
             ? {
                 ...item,
-                quantity: item.quantity + quantity,
+                quantity: newTotalQty,
                 files: files ? [...(item.files || []), ...files] : item.files,
               }
             : item,
@@ -145,15 +170,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart((prevCart) => {
       let next = [...prevCart];
       for (const line of order.items) {
-        const product = products.find((p) => p.id === line.id);
-        if (!product) continue;
-        const existing = next.find((i) => i.id === product.id);
+        const itemAsProduct: Product = {
+          id: line.id,
+          name: line.name,
+          nameEn: line.nameEn,
+          description: line.description || '',
+          price: line.price,
+          category: line.category as any,
+          image: line.image,
+          unit: line.unit,
+          minQuantity: line.minQuantity,
+        };
+        const existing = next.find((i) => i.id === line.id);
         if (existing) {
           next = next.map((i) =>
-            i.id === product.id ? { ...i, quantity: i.quantity + line.quantity } : i,
+            i.id === line.id ? { ...i, quantity: i.quantity + line.quantity } : i,
           );
         } else {
-          next.push({ ...product, quantity: line.quantity });
+          next.push({ ...itemAsProduct, quantity: line.quantity });
         }
       }
       return next;
@@ -168,15 +202,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return cart.reduce((count, item) => count + item.quantity, 0);
   };
 
-  const placeOrder = async (
-    deliveryAddress?: string,
-    pickupLocation?: string,
-    paymentMethod?: string,
-    estimatedTime?: string,
-  ) => {
-    const items = cart.map((item) => ({
+  const buildCartItems = () =>
+    cart.map((item) => ({
       id: item.id,
       name: item.name,
+      nameEn: item.nameEn,
       description: item.description,
       price: item.price,
       quantity: item.quantity,
@@ -186,13 +216,52 @@ export function CartProvider({ children }: { children: ReactNode }) {
       minQuantity: item.minQuantity,
       fileNames: item.files?.map((f) => f.name),
     }));
-    const created = await postOrder({
-      items,
-      total: getCartTotal(),
+
+  const placeGuestOrder = async (
+    guestName: string,
+    guestPhone: string,
+    deliveryAddress?: string,
+    pickupLocation?: string,
+    paymentMethod?: string,
+    estimatedTime?: string,
+    deliveryDate?: string,
+    deliveryTime?: string,
+    total?: number,
+  ) => {
+    const created = await postGuestOrder({
+      guestName,
+      guestPhone,
+      items: buildCartItems(),
+      total: total ?? getCartTotal(),
       deliveryAddress,
       pickupLocation,
       paymentMethod,
       estimatedTime,
+      deliveryDate,
+      deliveryTime,
+    });
+    clearCart();
+    return created.id;
+  };
+
+  const placeOrder = async (
+    deliveryAddress?: string,
+    pickupLocation?: string,
+    paymentMethod?: string,
+    estimatedTime?: string,
+    deliveryDate?: string,
+    deliveryTime?: string,
+    total?: number,
+  ) => {
+    const created = await postOrder({
+      items: buildCartItems(),
+      total: total ?? getCartTotal(),
+      deliveryAddress,
+      pickupLocation,
+      paymentMethod,
+      estimatedTime,
+      deliveryDate,
+      deliveryTime,
     });
     clearCart();
     const order = toOrder(created);
@@ -214,6 +283,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         updateQuantity,
         clearCart,
         placeOrder,
+        placeGuestOrder,
         getCartTotal,
         getCartItemCount,
         reorderFromOrder,

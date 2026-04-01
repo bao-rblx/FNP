@@ -4,16 +4,21 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
 import { DesktopNav } from '../components/DesktopNav';
 import { Button } from '../components/ui/button';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { products } from '../data/products';
+import { useAuth } from '../context/AuthContext';
 
 export default function Orders() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { orders, ordersLoading, ordersError, refreshOrders, reorderFromOrder } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [filter, setFilter] = useState<'all' | 'pending' | 'processing' | 'completed' | 'cancelled'>('all');
+  const [lookupId, setLookupId] = useState('');
 
   useEffect(() => {
     void refreshOrders();
@@ -87,16 +92,77 @@ export default function Orders() {
     );
   }
 
-  if (orders.length === 0) {
+  if (!user || (orders.length === 0 && !ordersLoading)) {
     return (
       <>
         <DesktopNav />
         <div className="min-h-screen bg-muted pb-20 md:pb-8 md:pt-16">
           <Header title={t.myOrders} />
 
-          <div className="max-w-6xl mx-auto px-4 pt-12 text-center">
+          <div className="max-w-2xl mx-auto px-4 pt-12 text-center">
+            {/* Guest Lookup Section */}
+            {!user && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-card text-card-foreground rounded-3xl p-8 shadow-xl shadow-black/5 ring-1 ring-border/50 mb-12"
+              >
+                <div className="bg-red-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Package className="w-8 h-8 text-red-600" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">{t.guestOrderLookupTitle}</h2>
+                <p className="text-muted-foreground mb-8">{t.guestOrderLookupDesc}</p>
+                
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (lookupId.trim()) navigate(`/order/guest/${lookupId.trim()}`);
+                  }}
+                  className="space-y-4"
+                >
+                  <input
+                    type="text"
+                    value={lookupId}
+                    onChange={(e) => setLookupId(e.target.value)}
+                    placeholder="e.g. ord_12345"
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:ring-2 focus:ring-red-500 outline-none transition-all text-center font-mono"
+                    required
+                  />
+                  <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white py-6 rounded-xl font-bold text-lg shadow-lg shadow-red-600/20">
+                    {t.guestOrderLookupBtn}
+                  </Button>
+                </form>
+
+                <div className="mt-8 pt-6 border-t border-border/50 text-sm">
+                  <p className="text-muted-foreground">
+                    {language === 'en' ? 'Want to see all your orders in one place?' : 'Muốn xem toàn bộ đơn hàng ở cùng một nơi?'}
+                  </p>
+                  <Link to="/auth" className="text-red-600 font-bold hover:underline mt-1 inline-block">
+                    {t.signIn}
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Empty State for Logged-in Users */}
+            {user && orders.length === 0 && (
+              <div className="space-y-6">
+                <div className="bg-muted/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Package className="w-12 h-12 text-gray-400" />
+                </div>
+                <h2 className="text-xl font-semibold">{t.noOrders}</h2>
+                <p className="text-muted-foreground">{t.noOrdersDesc}</p>
+                <Link
+                  to="/services/printing"
+                  className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700"
+                >
+                  {t.viewServices}
+                </Link>
+              </div>
+            )}
+            
             {ordersError && (
-              <div className="mb-6 mx-auto max-w-lg rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 text-left flex flex-wrap items-center gap-3">
+              <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 text-left flex flex-wrap items-center gap-3">
                 <span className="flex-1 min-w-0">{t.loadFailed}</span>
                 <Button
                   type="button"
@@ -109,21 +175,6 @@ export default function Orders() {
                   {t.tryAgain}
                 </Button>
               </div>
-            )}
-            <div className="bg-muted/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="w-12 h-12 text-gray-400" />
-            </div>
-            <h2 className={`text-xl font-semibold ${ordersError ? 'mb-6' : 'mb-2'}`}>
-              {ordersError ? t.orderError : t.noOrders}
-            </h2>
-            {!ordersError && <p className="text-muted-foreground mb-6">{t.noOrdersDesc}</p>}
-            {!ordersError && (
-              <Link
-                to="/services/printing"
-                className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700"
-              >
-                {t.viewServices}
-              </Link>
             )}
           </div>
         </div>
@@ -138,6 +189,7 @@ export default function Orders() {
         <Header title={t.myOrders} />
 
         <div className="max-w-6xl mx-auto px-4 py-4">
+          <BackButton />
           {ordersError && (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center gap-3">
               <span className="flex-1 min-w-0">{t.loadFailed}</span>
@@ -232,7 +284,7 @@ export default function Orders() {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{item.name}</p>
+                            <p className="font-medium truncate">{language === "en" ? (item.nameEn || products.find(p => p.id === item.id)?.nameEn || item.name) : item.name}</p>
                             <p className="text-xs text-muted-foreground">
                               Qty: {item.quantity}
                             </p>

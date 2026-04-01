@@ -2,27 +2,22 @@ import { useState } from 'react';
 import { Trash2, ShoppingBag, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router';
-import { toast } from 'sonner';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
+
 import { DesktopNav } from '../components/DesktopNav';
 import { QuantityInput } from '../components/QuantityInput';
-import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { translateUnit } from '../data/products';
 
 export default function Cart() {
-  const { user } = useAuth();
   const { cart, updateQuantity, removeFromCart, getCartTotal, discountRate } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const finalTotal = getCartTotal() * (1 - discountRate);
 
   const goToCheckout = () => {
-    if (!user) {
-      toast.info(t.loginRequiredCheckout);
-      navigate('/auth?return=/checkout');
-      return;
-    }
     navigate('/checkout');
   };
 
@@ -38,6 +33,8 @@ export default function Cart() {
           <Header title={t.myCart} />
           
           <div className="max-w-6xl mx-auto px-4 pt-20 text-center">
+            <BackButton />
+
             <div className="bg-muted/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
               <ShoppingBag className="w-12 h-12 text-gray-400" />
             </div>
@@ -64,6 +61,8 @@ export default function Cart() {
         <Header title={t.myCart} />
 
         <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+          <BackButton />
+
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -91,7 +90,7 @@ export default function Cart() {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-2">
-                        <h3 className="font-medium text-sm md:text-base">{item.name}</h3>
+                        <h3 className="font-medium text-sm md:text-base">{language === "en" && item.nameEn ? item.nameEn : item.name}</h3>
                         <button
                           onClick={() => removeFromCart(item.id)}
                           className="text-red-500 hover:text-red-600 p-1 flex-shrink-0"
@@ -99,7 +98,7 @@ export default function Cart() {
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
-                      <p className="text-muted-foreground text-xs md:text-sm mb-2">{item.unit}</p>
+                      <p className="text-muted-foreground text-xs md:text-sm mb-2">{translateUnit(item.unit, language)}</p>
                       
                       {/* Show uploaded files if printing service */}
                       {item.category === 'printing' && item.files && item.files.length > 0 && (
@@ -177,7 +176,7 @@ export default function Cart() {
                   className="hidden md:flex w-full bg-red-600 text-white py-4 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 items-center justify-center gap-3 mt-8 text-lg"
                 >
                   {t.checkout}
-                  <span aria-hidden>→</span>
+                  <span aria-hidden>â†’</span>
                 </motion.button>
               </div>
             </div>

@@ -4,7 +4,7 @@ import { getCustomerAlerts, getAdminAlerts, ApiError } from '../lib/api';
 import { loadNotifyPrefs, showBrowserNotification } from '../lib/notificationPrefs';
 import { playAdminIncomingSound, playCustomerIncomingSound, unlockAudio } from '../lib/sounds';
 
-const POLL_MS = 22_000;
+const POLL_MS = 5_000;
 
 export interface ActivityToastCopy {
   orderUpdate: string;

@@ -20,6 +20,8 @@ export interface Product {
   unit: string;
   minQuantity?: number;
   pickupOnly?: boolean;
+  stockLimit?: number;
+  isPromotion?: boolean;
 }
 
 export const products: Product[] = [
@@ -472,6 +474,33 @@ export const products: Product[] = [
   },
 ];
 
+const unitTranslations: Record<string, string> = {
+  'mỗi trang': 'per page',
+  'mỗi cuốn': 'per book',
+  'mỗi ram': 'per ream',
+  'mỗi tờ': 'per sheet',
+  'mỗi bản': 'per print',
+  'mỗi cái': 'per piece',
+  'mỗi hộp': 'per box',
+  'xấp 10 cái': 'pack of 10',
+  'mỗi bộ': 'per set',
+  'cuộn': 'per roll',
+  'mỗi tập 10 trang': 'per 10-page set',
+  'mỗi bộ 6 ảnh': 'per 6-photo set',
+  'mỗi file': 'per file',
+  'mỗi bộ 85x200cm': 'per set (85×200cm)',
+  'mỗi m²': 'per m²',
+  'mỗi tờ A3': 'per A3 sheet',
+  'mỗi tấm 60x90cm': 'per piece (60×90cm)',
+  'mỗi cái (từ 10 cái)': 'each (min. 10 pcs)',
+  'mỗi cái (lô 100)': 'each (lot of 100)',
+};
+
+export function translateUnit(unit: string, language: 'vi' | 'en'): string {
+  if (language === 'vi') return unit;
+  return unitTranslations[unit] ?? unit;
+}
+
 export interface CartItem extends Product {
   quantity: number;
   files?: File[];
@@ -493,6 +522,10 @@ export interface Order {
   deliveryAddress?: string;
   pickupLocation?: string;
   paymentMethod?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
   cancelReason?: string;
   notifications?: OrderNotificationRow[];
+  guestName?: string;
+  guestPhone?: string;
 }

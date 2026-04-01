@@ -4,11 +4,13 @@ import { MapPin, Clock, CreditCard, CheckCircle2, Bell, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
 import { DesktopNav } from '../components/DesktopNav';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import { products } from '../data/products';
 import { getOrder, postCancelOrder, ApiError, type ApiOrder } from '../lib/api';
 import type { CartItem, Order } from '../data/products';
 
@@ -33,7 +35,7 @@ export default function OrderDetail() {
   const { user, authReady } = useAuth();
   const navigate = useNavigate();
   const { refreshOrders, reorderFromOrder } = useCart();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelNote, setCancelNote] = useState('');
@@ -119,6 +121,7 @@ export default function OrderDetail() {
       <Header title={t.orderStatus} showBack />
 
       <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+        <BackButton />
         {/* Page header row */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -229,7 +232,7 @@ export default function OrderDetail() {
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{item.name}</p>
+                      <p className="font-semibold text-sm truncate">{language === "en" ? (item.nameEn || products.find(p => p.id === item.id)?.nameEn || item.name) : item.name}</p>
                       <p className="text-xs text-muted-foreground">{t.quantity}: {item.quantity}</p>
                     </div>
                     <p className="text-sm font-bold text-right shrink-0">{formatPrice(item.price * item.quantity)}</p>

@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Clock,
   FileText,
-  MapPin,
   Package,
   Percent,
   Printer,
@@ -11,20 +10,51 @@ import {
   Sparkles,
   Tag,
   TrendingUp,
+  Flame,
+  ChevronRight,
+  Megaphone,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router';
+import { toast } from 'sonner';
 import { DesktopNav } from '../components/DesktopNav';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { products, type Product } from '../data/products';
+import { getProducts, type ApiProduct } from '../lib/api';
+import { Card } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 
-const SUGGESTED_IDS = ['print-bw', 'print-color', 'print-binding', 'paper-a4'] as const;
+const SUGGESTED_IDS = ['print-a4', 'paper-a4', 'supply-pen'] as const;
 
 export default function Home() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (err) {
+        console.error('Failed to load products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, []);
+
+  const handleCopyCoupon = () => {
+    if (!user) {
+      toast.error(language === 'en' ? 'You have to log in to use this deal' : 'Bạn phải đăng nhập để sử dụng ưu đãi này');
+      return;
+    }
+    void navigator.clipboard.writeText('FREEVLU');
+    toast.success(t.copiedToClipboard);
+  };
 
   const categories = [
     {
@@ -71,274 +101,190 @@ export default function Home() {
     { label: t.trackOrder, icon: Package, to: ordersPath, hint: t.processing_status },
   ];
 
-  const suggestedProducts = useMemo(() => {
-    const set = new Set<string>(SUGGESTED_IDS);
-    return products.filter((p) => set.has(p.id));
-  }, []);
-
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
     return products.filter((p) => {
-      const blob = [
-        p.name,
-        p.description,
-        p.nameEn,
-        p.descriptionEn,
-        p.category,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+      const blob = [p.name, p.description, p.nameEn, p.descriptionEn, p.category]
+        .filter(Boolean).join(' ').toLowerCase();
       return blob.includes(q);
-    });
-  }, [searchQuery]);
+    }).slice(0, 6);
+  }, [searchQuery, products]);
 
-  const productName = (p: Product) => (language === 'en' && p.nameEn ? p.nameEn : p.name);
-
-  const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN').format(price) + 'đ';
-
-  const unitLabel = (p: Product) => {
-    if (p.unit.includes('trang')) return t.perPage;
-    if (p.unit.includes('cuốn')) return t.perBook;
-    if (p.unit.includes('bộ')) return t.perSet;
-    return t.perPiece;
+  const productName = (p: ApiProduct) => (language === 'en' && p.nameEn ? p.nameEn : p.name);
+  const formatPrice = (price: number) => {
+    if (price === 0) return t.free || (language === 'en' ? 'Free' : 'Miễn phí');
+    return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
   };
 
   return (
     <>
       <DesktopNav />
-      <div className="min-h-screen bg-background text-foreground pb-20 md:pb-8 md:pt-16">
-        <header className="relative overflow-hidden bg-gradient-to-br from-red-600 via-rose-600 to-orange-500 text-white">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800')] opacity-10 mix-blend-overlay bg-cover bg-center" />
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/20 blur-[80px] rounded-full" />
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="relative max-w-6xl mx-auto px-4 pt-10 pb-16 md:pt-16 md:pb-24 text-center md:text-left"
-          >
+      <div className="min-h-screen bg-background pb-24 md:pb-12 md:pt-16">
+        <header className="relative bg-gradient-to-br from-red-600 via-red-500 to-rose-600 text-white overflow-hidden">
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544650030-3c9baf62427a?h=600')] opacity-10 mix-blend-overlay bg-cover" />
+          <div className="max-w-6xl mx-auto px-4 py-16 md:py-24 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-12">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex-1">
+                <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter uppercase">FLASH <span className="text-red-200">N</span> PRINT</h1>
+                <p className="text-lg md:text-xl text-red-50 font-medium max-w-xl opacity-90">
+                  {language === 'vi' ? 'Dịch vụ in ấn & giao hàng cao cấp cho cộng đồng Văn Lang.' : 'Premium print & campus delivery for Van Lang community.'}
+                </p>
+              </motion.div>
 
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-3 tracking-tight drop-shadow-sm">Flash Print N Ship</h1>
-            <p className="text-red-50 text-base md:text-lg max-w-md mx-auto md:mx-0 font-medium">Fast, reliable, and premium delivery across the VLU Campus.</p>
-          </motion.div>
-        </header>
-
-        <div className="max-w-6xl mx-auto px-4 relative z-20">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="-mt-8 mb-8 md:-mt-10 md:mb-10"
-          >
-            <label className="sr-only" htmlFor="home-search">
-              {t.searchPlaceholder}
-            </label>
-            <div className="relative group">
-              <input
-                id="home-search"
-                type="search"
-                autoComplete="off"
-                placeholder={t.searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-card border-none w-full px-5 py-4 pl-12 pr-12 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 focus:ring-2 focus:ring-red-500 outline-none text-foreground placeholder:text-muted-foreground transition-all duration-300 group-hover:shadow-2xl"
-              />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none group-focus-within:text-red-500 transition-colors" />
-              {searchQuery.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded-md transition-colors"
-                >
-                  {t.close}
-                </button>
-              )}
-            </div>
-            {searchQuery.trim() && (
-              <div className="mt-2 bg-card rounded-lg shadow-md border border-border max-h-72 overflow-y-auto">
-                {searchResults.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground text-center">{t.homeSearchNoResults}</p>
-                ) : (
-                  <ul className="divide-y divide-border">
-                    {searchResults.map((p) => (
-                      <li key={p.id}>
-                        <Link
-                          to={`/product/${p.id}`}
-                          className="flex items-center gap-3 p-3 hover:bg-red-500/10 transition-colors"
-                          onClick={() => setSearchQuery('')}
-                        >
-                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
-                            <img src={p.image} alt="" className="w-full h-full object-cover" />
-                          </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <p className="font-medium text-sm truncate">{productName(p)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatPrice(p.price)} · {unitLabel(p)}
-                            </p>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="grid md:grid-cols-2 gap-4 mb-8"
-          >
-            <motion.div whileHover={{ scale: 1.02 }} className="rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-800 text-white p-6 md:p-8 shadow-xl relative overflow-hidden ring-1 ring-white/10">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2" />
-              <Tag className="w-12 h-12 opacity-10 absolute right-4 bottom-4" />
-              <p className="text-xs uppercase tracking-widest opacity-90 font-medium mb-2 inline-block bg-white/20 px-2 py-1 rounded-md">{t.limitedOffer}</p>
-              <h3 className="text-xl md:text-2xl font-bold mt-2">{t.homePromoTitle1}</h3>
-              <p className="text-sm opacity-95 mt-2 leading-relaxed max-w-sm">{t.homePromoBody1}</p>
-              <div className="mt-5 inline-block font-mono font-bold text-lg bg-black/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl border border-white/20">
-                {t.homePromoCode1}
-              </div>
-            </motion.div>
-            
-            <motion.div whileHover={{ scale: 1.02 }} className="rounded-3xl bg-gradient-to-br from-amber-500 to-rose-600 text-white p-6 md:p-8 shadow-xl relative overflow-hidden ring-1 ring-white/10">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2" />
-              <Percent className="w-12 h-12 opacity-10 absolute right-4 bottom-4" />
-              <p className="text-xs uppercase tracking-widest opacity-90 font-medium mb-2 inline-block bg-white/20 px-2 py-1 rounded-md">{t.popularThisWeek}</p>
-              <h3 className="text-xl md:text-2xl font-bold mt-2">{t.homePromoTitle2}</h3>
-              <p className="text-sm opacity-95 mt-2 leading-relaxed max-w-sm">{t.homePromoBody2}</p>
-              <div className="mt-5 inline-block font-mono font-bold text-lg bg-black/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl border border-white/20">
-                {t.homePromoCode2}
-              </div>
-            </motion.div>
-          </motion.div>
-
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-          >
-            <div className="md:col-span-2">
-                <h2 className="font-semibold text-lg md:text-2xl mb-4 tracking-tight">{t.ourServices}</h2>
-              <div className="space-y-4">
-                {categories.map((category) => {
-                  const Icon = category.icon;
-                  return (
-                    <motion.div whileHover={{ scale: 1.01 }} key={category.id}>
-                      <Link
-                        to={`/services/${category.id}`}
-                        className="block bg-card rounded-2xl p-5 md:p-6 shadow-sm shadow-black/5 dark:shadow-black/20 border border-border hover:shadow-lg hover:border-red-500/50 transition-all duration-300"
-                      >
-                        <div className="flex items-center gap-5">
-                          <div className={`${category.color} p-4 rounded-xl`}>
-                            <Icon className="w-6 h-6 md:w-8 md:h-8" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-base md:text-xl mb-1">{category.name}</h3>
-                            <p className="text-sm text-muted-foreground">{category.description}</p>
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-accent text-accent-foreground flex items-center justify-center shrink-0 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-6 md:col-span-2 lg:col-span-1">
-              <div>
-                <h2 className="font-semibold text-lg md:text-xl mb-4 tracking-tight">{t.quickActions}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                  {quickActions.map((action) => {
-                    const Icon = action.icon;
-                    return (
-                      <motion.div whileHover={{ scale: 1.02 }} key={action.label}>
-                        <Link
-                          to={action.to}
-                          className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow text-left block"
-                        >
-                          <Icon className="w-6 h-6 text-red-600 mb-3" />
-                          <p className="text-base font-semibold">{action.label}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{action.hint}</p>
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
+              {/* Store Announcement (Right side) */}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
+                className="inline-flex items-center gap-4 px-6 py-5 rounded-3xl border-2 border-dashed border-white/40 bg-white/10 backdrop-blur-sm self-start md:self-center"
+              >
+                <div className="p-3 bg-white/20 rounded-2xl animate-pulse">
+                  <Megaphone className="w-6 h-6 text-white" />
                 </div>
-              </div>
-
-              <div className="bg-card rounded-xl p-4 shadow-sm border border-border">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-red-100 text-red-600">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-base">{t.homeSameDayTitle}</h2>
-                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{t.homeSameDayBody}</p>
-                  </div>
-                </div>
-                <Link
-                  to="/services/printing"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700"
-                >
-                  {t.printingServices}
-                  <span aria-hidden>→</span>
-                </Link>
-              </div>
-
-              <div>
-                <h2 className="font-semibold text-lg md:text-xl mb-1">{t.homeSuggestedTitle}</h2>
-                <p className="text-xs text-muted-foreground mb-3">{t.homeSuggestedSubtitle}</p>
-                <div className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3">
-                  {suggestedProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center gap-3 pb-3 border-b border-border last:border-0 last:pb-0"
-                    >
-                      <div className="w-12 h-12 bg-muted rounded-lg overflow-hidden shrink-0">
-                        <img src={p.image} alt="" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{productName(p)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatPrice(p.price)} {unitLabel(p)}
-                        </p>
-                      </div>
-                      <Link
-                        to={`/product/${p.id}`}
-                        className="text-red-600 text-sm font-medium shrink-0"
-                      >
-                        {t.add}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <motion.div whileHover={{ scale: 1.02 }} className="bg-card rounded-2xl p-5 shadow-sm border border-border flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-red-100 text-red-600 shrink-0">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="font-semibold text-base">{t.pickup}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t.libraryA}</p>
-                  <Link to="/checkout" className="text-sm text-red-600 font-medium mt-2 inline-flex items-center gap-1">
-                    {t.checkout} <span aria-hidden>→</span>
-                  </Link>
+                <div className="flex flex-col justify-center">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-0.5 leading-none">{language === 'vi' ? 'Thông báo' : 'Announcement'}</p>
+                  <p className="font-extrabold text-white tracking-wide text-lg leading-tight">
+                    {t.storeAnnouncement}
+                  </p>
                 </div>
               </motion.div>
             </div>
-          </motion.div>
+          </div>
+        </header>
+
+        <div className="max-w-6xl mx-auto px-4 -mt-10 relative z-20">
+          {/* Search Box */}
+          <Card className="p-2 rounded-3xl shadow-2xl border-none ring-1 ring-black/5 bg-card/80 backdrop-blur-md">
+            <div className="relative flex items-center">
+              <Search className="absolute left-5 w-5 h-5 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                className="w-full h-16 pl-14 pr-6 bg-transparent outline-none text-lg font-medium"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-5 bg-muted p-1 rounded-full"><Clock className="w-4 h-4 rotate-45" /></button>
+              )}
+            </div>
+            <AnimatePresence>
+              {searchQuery && (
+                <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-border/50">
+                  <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+                    {loading ? (
+                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin" /></div>
+                    ) : searchResults.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">{t.homeSearchNoResults}</p>
+                    ) : (
+                      searchResults.map(p => (
+                        <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-3 hover:bg-muted rounded-2xl transition-colors">
+                          <img src={p.image} className="w-12 h-12 rounded-xl object-cover" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm truncate">{productName(p)}</p>
+                            <p className="text-xs text-red-600 font-bold">{formatPrice(p.price)}</p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Card>
+
+          <div className="grid lg:grid-cols-3 gap-8 mt-12">
+            <div className="lg:col-span-2 space-y-12">
+              {/* Categories */}
+              <section>
+                <h2 className="text-2xl font-black mb-8 tracking-tighter uppercase flex items-center gap-2">
+                  <Flame className="w-6 h-6 text-red-600" />
+                  {t.ourServices}
+                </h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {categories.map((cat) => {
+                    const Icon = cat.icon;
+                    return (
+                      <Link key={cat.id} to={`/services/${cat.id}`}>
+                        <Card className="p-6 h-full rounded-[2rem] border-border/50 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-300 flex items-center gap-6 group hover:-translate-y-1">
+                          <div className={`${cat.color} p-4 rounded-2xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0`}><Icon className="w-8 h-8" /></div>
+                          <div className="flex flex-col justify-center">
+                            <h3 className="font-bold text-lg leading-snug">{cat.name}</h3>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{cat.description}</p>
+                          </div>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+
+                  <Link to="/services/all" className="group">
+                    <motion.div
+                      animate={{ 
+                        boxShadow: [
+                          '0 0 0px rgba(239, 68, 68, 0)', 
+                          '0 0 10px rgba(239, 68, 68, 0.2)', 
+                          '0 0 0px rgba(239, 68, 68, 0)'
+                        ]
+                      }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="p-6 h-full rounded-[2rem] border-2 border-dashed border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/5 flex items-center gap-6 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all group hover:-translate-y-1"
+                    >
+                      <div className="p-4 bg-red-600 text-white rounded-2xl group-hover:scale-110 transition-transform shadow-lg shadow-red-500/20">
+                        <Sparkles className="w-8 h-8" />
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <h3 className="font-bold text-red-600 dark:text-red-400 text-lg leading-snug">{t.viewAllServices}</h3>
+                        <p className="text-xs text-muted-foreground font-medium line-clamp-1">{language === 'en' ? 'Explore 50+' : 'Khám phá 50+'}</p>
+                      </div>
+                    </motion.div>
+                  </Link>
+                </div>
+
+              </section>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-8">
+              <Card className="p-6 rounded-[2rem] bg-card text-card-foreground border-red-100 dark:border-red-900/40 shadow-xl overflow-hidden relative group">
+                <div className="absolute inset-0 bg-red-600/5 group-hover:bg-red-600/10 transition-colors" />
+                <div className="relative z-10">
+                  <Tag className="w-10 h-10 text-red-600 mb-4" />
+                  <h3 className="text-xl font-bold mb-2">{t.homeFirstOrderTitle}</h3>
+                  <p className="text-sm text-muted-foreground mb-6">{t.homeFirstOrderBody}</p>
+                  <div className="bg-red-50 dark:bg-red-950/40 p-4 rounded-2xl border border-red-200 dark:border-red-800 text-center font-mono text-xl font-bold tracking-widest text-red-600 dark:text-red-400">
+                    FREEVLU
+                  </div>
+                  <Button 
+                    className="w-full mt-6 bg-red-600 hover:bg-red-700 h-12 rounded-xl font-bold text-white shadow-lg shadow-red-500/20"
+                    onClick={handleCopyCoupon}
+                  >
+                    {language === 'vi' ? 'Nhận Ngay' : 'Claim Now'}
+                  </Button>
+                </div>
+              </Card>
+
+              <div className="space-y-4">
+                <h3 className="font-bold text-xl px-2">{t.quickActions}</h3>
+                {quickActions.map(act => (
+                  <Link key={act.label} to={act.to} className="block">
+                    <Card className="p-4 rounded-2xl border-border/50 hover:border-red-500/50 flex items-center gap-4 transition-all hover:bg-muted group">
+                      <div className="p-3 bg-muted group-hover:bg-card rounded-xl transition-colors"><act.icon className="w-6 h-6 text-red-600" /></div>
+                      <div><p className="font-bold text-sm">{act.label}</p><p className="text-xs text-muted-foreground">{act.hint}</p></div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+
+              <Card className="p-6 rounded-[2rem] border-dashed border-2 border-red-200 bg-red-50/30 dark:bg-red-950/10 dark:border-red-900/40">
+                <div className="flex gap-4 items-center">
+                  <div className="p-3 bg-red-100 dark:bg-red-900/50 rounded-xl text-red-600"><Clock className="w-6 h-6" /></div>
+                  <div><h3 className="font-bold">{t.homeSameDayTitle}</h3><p className="text-xs text-muted-foreground leading-relaxed">{t.homeSameDayBody}</p></div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </>

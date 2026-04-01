@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Monitor, Moon, Sun } from 'lucide-react';
-import { Button } from './ui/button';
 import { useLanguage } from '../context/LanguageContext';
 
 export function ThemeToggle() {
@@ -15,38 +14,29 @@ export function ThemeToggle() {
     return <div className="h-10 flex items-center text-sm text-muted-foreground">…</div>;
   }
 
+  const options = [
+    { value: 'light', label: t.themeLight, icon: Sun },
+    { value: 'dark', label: t.themeDark, icon: Moon },
+    { value: 'system', label: t.themeSystem, icon: Monitor },
+  ] as const;
+
   return (
-    <div className="flex flex-wrap gap-2 py-1">
-      <Button
-        type="button"
-        size="sm"
-        variant={theme === 'light' ? 'default' : 'outline'}
-        className={theme === 'light' ? 'bg-red-600 hover:bg-red-700' : ''}
-        onClick={() => setTheme('light')}
-      >
-        <Sun className="w-4 h-4 mr-1" />
-        {t.themeLight}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={theme === 'dark' ? 'default' : 'outline'}
-        className={theme === 'dark' ? 'bg-red-600 hover:bg-red-700' : ''}
-        onClick={() => setTheme('dark')}
-      >
-        <Moon className="w-4 h-4 mr-1" />
-        {t.themeDark}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={theme === 'system' ? 'default' : 'outline'}
-        className={theme === 'system' ? 'bg-red-600 hover:bg-red-700' : ''}
-        onClick={() => setTheme('system')}
-      >
-        <Monitor className="w-4 h-4 mr-1" />
-        {t.themeSystem}
-      </Button>
+    <div className="inline-flex rounded-lg border border-border bg-muted/50 p-1 gap-1">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => setTheme(value)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            theme === value
+              ? 'bg-card text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Icon className="w-3.5 h-3.5" />
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

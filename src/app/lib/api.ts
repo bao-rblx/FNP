@@ -1,4 +1,4 @@
-import type { PublicUser } from './authValidation';
+import type { PublicUser, UserRank } from './authValidation';
 
 const TOKEN_KEY = 'fnp_token';
 
@@ -76,6 +76,7 @@ export async function postLogin(body: { email: string; password: string }): Prom
 export async function postRegister(body: {
   name: string;
   schoolEmail: string;
+  phone?: string;
   studentId: string;
   password: string;
 }): Promise<LoginResponse> {
@@ -85,20 +86,136 @@ export async function postRegister(body: {
   });
 }
 
+export async function postForgotPassword(email: string): Promise<{ ok: boolean; debug_token?: string }> {
+  return apiFetch<{ ok: boolean; debug_token?: string }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function postResetPassword(token: string, newPassword: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+  });
+}
+
+export async function postChangePassword(oldPassword: string, newPassword: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+}
+
 export async function getMe(): Promise<PublicUser> {
   return apiFetch<PublicUser>('/api/auth/me');
 }
 
-export async function patchMe(body: { name?: string; studentId?: string }): Promise<PublicUser> {
+export async function patchMe(body: { name?: string; studentId?: string; phone?: string }): Promise<PublicUser> {
   return apiFetch<PublicUser>('/api/auth/me', {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
 }
 
+export async function postRedeemPoints(points: number): Promise<{ ok: boolean; discountAmount: number; remainingPoints: number }> {
+  return apiFetch<{ ok: boolean; discountAmount: number; remainingPoints: number }>('/api/redeem-points', {
+    method: 'POST',
+    body: JSON.stringify({ points }),
+  });
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  nameEn?: string;
+  price: number;
+}
+
+export interface ApiProduct {
+  id: string;
+  name: string;
+  nameEn?: string;
+  description: string;
+  descriptionEn?: string;
+  price: number;
+  category: string;
+  image: string;
+  unit: string;
+  minQuantity: number;
+  pickupOnly: boolean;
+  variants?: ProductVariant[];
+  isPromotion: boolean;
+  stockLimit: number;
+}
+
+export async function getProducts(): Promise<ApiProduct[]> {
+  return apiFetch<ApiProduct[]>('/api/products');
+}
+
+export async function adminPostProduct(product: Partial<ApiProduct>): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>('/api/admin/products', {
+    method: 'POST',
+    body: JSON.stringify(product),
+  });
+}
+
+export async function adminPatchProduct(id: string, product: Partial<ApiProduct>): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/admin/products/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(product),
+  });
+}
+
+export async function adminDeleteProduct(id: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/admin/products/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export interface ApiCoupon {
+  code: string;
+  discount_percent: number;
+  max_uses: number;
+  used_count: number;
+  expires_at: string | null;
+  min_spent: number;
+}
+
+export async function getAdminCoupons(): Promise<ApiCoupon[]> {
+  return apiFetch<ApiCoupon[]>('/api/admin/coupons');
+}
+
+export async function adminPostCoupon(coupon: {
+  code: string;
+  discountPercent: number;
+  maxUses?: number;
+  expiresAt?: string;
+  minSpent?: number;
+}): Promise<{ code: string }> {
+  return apiFetch<{ code: string }>('/api/admin/coupons', {
+    method: 'POST',
+    body: JSON.stringify(coupon),
+  });
+}
+
+export async function adminDeleteCoupon(code: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/admin/coupons/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function postValidateCoupon(code: string, totalSpent: number): Promise<{ code: string; discountPercent: number }> {
+  return apiFetch<{ code: string; discountPercent: number }>('/api/coupons/validate', {
+    method: 'POST',
+    body: JSON.stringify({ code, totalSpent }),
+  });
+}
+
 export type OrderItemPayload = {
   id: string;
   name: string;
+  nameEn?: string;
   description?: string;
   price: number;
   quantity: number;
@@ -127,10 +244,15 @@ export interface ApiOrder {
   deliveryAddress?: string;
   pickupLocation?: string;
   paymentMethod?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
+  receivedPoints?: number;
   cancelReason?: string;
   notifications?: OrderNotification[];
   userEmail?: string;
   userName?: string;
+  guestName?: string;
+  guestPhone?: string;
 }
 
 export async function postOrder(body: {
@@ -140,11 +262,35 @@ export async function postOrder(body: {
   pickupLocation?: string;
   paymentMethod?: string;
   estimatedTime?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
 }): Promise<ApiOrder> {
   return apiFetch<ApiOrder>('/api/orders', {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export async function postGuestOrder(body: {
+  guestName: string;
+  guestPhone: string;
+  items: OrderItemPayload[];
+  total: number;
+  deliveryAddress?: string;
+  pickupLocation?: string;
+  paymentMethod?: string;
+  estimatedTime?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
+}): Promise<ApiOrder> {
+  return apiFetch<ApiOrder>('/api/orders/guest', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getGuestOrder(id: string): Promise<ApiOrder> {
+  return apiFetch<ApiOrder>(`/api/orders/guest/${encodeURIComponent(id)}`);
 }
 
 export async function getOrders(): Promise<ApiOrder[]> {
@@ -189,7 +335,7 @@ export async function adminPostOrderNotification(
 export async function deleteAdminOrderNotification(
   orderId: string,
   noteId: number,
-): Promise<{ ok: boolean }> {
+ ): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(
     `/api/admin/orders/${encodeURIComponent(orderId)}/notifications/${noteId}`,
     { method: 'DELETE' },
@@ -276,9 +422,12 @@ export async function postAdminSupportMessage(
 export interface AdminUserRow {
   id: number;
   schoolEmail: string;
+  phone?: string | null;
   name: string;
   studentId: string;
   role: string;
+  points: number;
+  rank: UserRank;
   createdAt?: string;
   lastLoginAt?: string | null;
   orderCount: number;

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronUp, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Trash2, Tag, Percent, Flame } from 'lucide-react';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
 import { DesktopNav } from '../components/DesktopNav';
+import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -31,10 +33,19 @@ import {
   getAdminUsers,
   patchAdminUser,
   postAdminSupportMessage,
+  getProducts,
+  adminPostProduct,
+  adminPatchProduct,
+  adminDeleteProduct,
+  getAdminCoupons,
+  adminPostCoupon,
+  adminDeleteCoupon,
   type AdminUserRow,
   type ApiOrder,
   type SupportMessage,
   type SupportThread,
+  type ApiProduct,
+  type ApiCoupon,
 } from '../lib/api';
 import { isNumericStudentId } from '../lib/authValidation';
 
@@ -42,7 +53,7 @@ const STATUSES = ['pending', 'processing', 'ready', 'completed', 'cancelled'] as
 
 export default function Admin() {
   const { user, authReady } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [tab, setTab] = useState('orders');
 
   const [orders, setOrders] = useState<ApiOrder[]>([]);
@@ -71,6 +82,16 @@ export default function Admin() {
   const [chatText, setChatText] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatLoadError, setChatLoadError] = useState(false);
+  
+  const [productList, setProductList] = useState<ApiProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [isEditingProduct, setIsEditingProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Partial<ApiProduct> | null>(null);
+  
+  const [couponList, setCouponList] = useState<ApiCoupon[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [isAddingCoupon, setIsAddingCoupon] = useState(false);
+  const [newCoupon, setNewCoupon] = useState({ code: '', discountPercent: 0, maxUses: 0, minSpent: 0, expiresAt: '' });
 
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -166,6 +187,33 @@ export default function Admin() {
     const id = window.setInterval(() => void loadChat(chatUserId), 5000);
     return () => window.clearInterval(id);
   }, [tab, chatUserId, loadChat]);
+
+  const loadProducts = useCallback(async () => {
+    setProductsLoading(true);
+    try {
+      setProductList(await getProducts());
+    } catch {
+      toast.error(t.orderError);
+    } finally {
+      setProductsLoading(false);
+    }
+  }, [t.orderError]);
+
+  const loadCoupons = useCallback(async () => {
+    setCouponsLoading(true);
+    try {
+      setCouponList(await getAdminCoupons());
+    } catch {
+      toast.error(t.orderError);
+    } finally {
+      setCouponsLoading(false);
+    }
+  }, [t.orderError]);
+
+  useEffect(() => {
+    if (tab === 'products' && user?.role === 'admin') void loadProducts();
+    if (tab === 'coupons' && user?.role === 'admin') void loadCoupons();
+  }, [tab, user?.role, loadProducts, loadCoupons]);
 
   if (!authReady) {
     return (
@@ -321,6 +369,68 @@ export default function Admin() {
     }
   };
 
+  const saveProduct = async () => {
+    if (!editingProduct?.name || (editingProduct?.price === undefined || editingProduct?.price === null)) {
+      toast.error(t.authFillFields);
+      return;
+    }
+    try {
+      const payload = {
+        ...editingProduct,
+        description: editingProduct.description || '',
+        descriptionEn: editingProduct.descriptionEn || '',
+        stockLimit: editingProduct.stockLimit ?? -1,
+      };
+      if (editingProduct.id) {
+        await adminPatchProduct(editingProduct.id, payload);
+      } else {
+        await adminPostProduct(payload);
+      }
+      toast.success(t.save);
+      setIsEditingProduct(false);
+      void loadProducts();
+    } catch {
+      toast.error(t.orderError);
+    }
+  };
+
+  const removeProduct = async (id: string) => {
+    if (!window.confirm(t.delete)) return;
+    try {
+      await adminDeleteProduct(id);
+      void loadProducts();
+      toast.success(t.delete);
+    } catch {
+      toast.error(t.orderError);
+    }
+  };
+
+  const saveCoupon = async () => {
+    if (!newCoupon.code || !newCoupon.discountPercent) {
+      toast.error(t.authFillFields);
+      return;
+    }
+    try {
+      await adminPostCoupon(newCoupon);
+      toast.success(t.save);
+      setIsAddingCoupon(false);
+      void loadCoupons();
+    } catch {
+      toast.error(t.orderError);
+    }
+  };
+
+  const removeCoupon = async (code: string) => {
+    if (!window.confirm(t.delete)) return;
+    try {
+      await adminDeleteCoupon(code);
+      void loadCoupons();
+      toast.success(t.delete);
+    } catch {
+      toast.error(t.orderError);
+    }
+  };
+
   return (
     <>
       <DesktopNav />
@@ -328,10 +438,13 @@ export default function Admin() {
         <Header title={t.adminPanel} showBack />
 
         <div className="max-w-6xl mx-auto px-4 py-4">
+          <BackButton />
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="grid w-full max-w-md grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-5 mb-4 max-w-2xl">
               <TabsTrigger value="orders">{t.adminTabOrders}</TabsTrigger>
               <TabsTrigger value="users">{t.adminTabUsers}</TabsTrigger>
+              <TabsTrigger value="products">{t.adminTabProducts}</TabsTrigger>
+              <TabsTrigger value="coupons">{t.adminTabCoupons}</TabsTrigger>
               <TabsTrigger value="chat">{t.adminTabChat}</TabsTrigger>
             </TabsList>
 
@@ -387,8 +500,8 @@ export default function Admin() {
                         >
                           <div>
                             <p className="font-semibold">{o.id}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {[o.userName, o.userEmail].filter(Boolean).join(' · ')}
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {[o.userName || o.guestName, o.userEmail || o.guestPhone].filter(Boolean).join(' · ')}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                               {statusLabel(o.status)} · {formatPrice(o.total)}
@@ -562,11 +675,11 @@ export default function Admin() {
                         <th className="text-left p-3">ID</th>
                         <th className="text-left p-3">{t.schoolEmail}</th>
                         <th className="text-left p-3">{t.fullName}</th>
-                        <th className="text-left p-3">{t.studentIdLabel}</th>
                         <th className="text-left p-3">{t.userRole}</th>
+                        <th className="text-left p-3">{t.rewardPoints}</th>
+                        <th className="text-left p-3">{t.memberRank}</th>
                         <th className="text-left p-3">{t.totalOrders}</th>
                         <th className="text-left p-3">{t.totalSpent}</th>
-                        <th className="text-left p-3">{t.lastLogin}</th>
                         <th className="p-3" />
                       </tr>
                     </thead>
@@ -574,60 +687,23 @@ export default function Admin() {
                       {users.map((u) => (
                         <tr key={u.id} className="border-b border-border/50">
                           <td className="p-3">{u.id}</td>
-                          <td className="p-3 max-w-[140px] truncate">{u.schoolEmail}</td>
-                          <td className="p-3">{u.name}</td>
-                          <td className="p-3">{u.studentId}</td>
+                          <td className="p-3">{u.schoolEmail}</td>
+                          <td className="p-3 font-medium">{u.name}</td>
+                          <td className="p-3 capitalize">{u.role}</td>
+                          <td className="p-3 font-bold text-red-600">{u.points}</td>
                           <td className="p-3">
-                            <span
-                              className={
-                                u.role === 'admin' ? 'text-red-600 font-medium' : 'text-muted-foreground'
-                              }
-                            >
-                              {u.role}
-                            </span>
+                             <span className={`px-2 py-1 rounded-full text-[10px] uppercase font-black tracking-widest ${
+                               u.rank === 'platinum' ? 'bg-zinc-900 text-amber-400' :
+                               u.rank === 'gold' ? 'bg-amber-100 text-amber-700' :
+                               u.rank === 'silver' ? 'bg-zinc-100 text-zinc-600' : 'bg-red-50 text-red-600'
+                             }`}>
+                               {u.rank}
+                             </span>
                           </td>
                           <td className="p-3">{u.orderCount}</td>
                           <td className="p-3">{formatPrice(u.totalSpent)}</td>
-                          <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
-                            {u.lastLoginAt
-                              ? new Date(u.lastLoginAt).toLocaleString()
-                              : '—'}
-                          </td>
-                          <td className="p-3 space-x-1 whitespace-nowrap">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                setEditingUser(u);
-                                setEditUserName(u.name);
-                                setEditUserStudentId(u.studentId);
-                              }}
-                            >
-                              {t.adminEditUser}
-                            </Button>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                              onClick={() => {
-                                setUserFilter(u.id);
-                                setTab('orders');
-                              }}
-                            >
-                              {t.adminViewOrders}
-                            </Button>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => void removeUser(u)}
-                            >
-                              {t.delete}
-                            </Button>
+                          <td className="p-3 text-right">
+                             <Button size="sm" variant="outline" onClick={() => { setUserFilter(u.id); setTab('orders'); }}>{t.adminViewOrders}</Button>
                           </td>
                         </tr>
                       ))}
@@ -635,6 +711,63 @@ export default function Admin() {
                   </table>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="products">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-muted-foreground">{t.adminProductName}</p>
+                <Button onClick={() => { setEditingProduct({ name: '', price: 0, category: 'printing', unit: 'trang', minQuantity: 1 }); setIsEditingProduct(true); }}>
+                  {t.adminAddProduct}
+                </Button>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {productList.map(p => (
+                  <Card key={p.id} className="p-4 flex gap-4 items-center">
+                    <img src={p.image} className="w-16 h-16 rounded-xl object-cover" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate">{language === 'en' ? p.nameEn || p.name : p.name}</p>
+                      <p className="text-sm text-red-600 font-bold">{formatPrice(p.price)}</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingProduct(p); setIsEditingProduct(true); }}>{t.edit}</Button>
+                      <Button size="sm" variant="ghost" className="text-red-600" onClick={() => removeProduct(p.id)}>{t.delete}</Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="coupons">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-muted-foreground">{t.adminCouponCode}</p>
+                <Button onClick={() => setIsAddingCoupon(true)}>{t.adminAddCoupon}</Button>
+              </div>
+              <div className="bg-card rounded-xl border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="p-3 text-left">{t.adminCouponCode}</th>
+                      <th className="p-3 text-left">{t.adminCouponDiscount}</th>
+                      <th className="p-3 text-left">{t.adminCouponMaxUses}</th>
+                      <th className="p-3 text-left">{t.adminCouponMinSpent}</th>
+                      <th className="p-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {couponList.map(c => (
+                      <tr key={c.code} className="border-t">
+                        <td className="p-3 font-mono font-bold">{c.code}</td>
+                        <td className="p-3">{c.discount_percent}%</td>
+                        <td className="p-3">{c.used_count} / {c.max_uses}</td>
+                        <td className="p-3">{formatPrice(c.min_spent)}</td>
+                        <td className="p-3 text-right">
+                          <Button size="sm" variant="ghost" className="text-red-600" onClick={() => removeCoupon(c.code)}>{t.delete}</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </TabsContent>
 
             <TabsContent value="chat">
@@ -804,6 +937,76 @@ export default function Admin() {
               {t.save}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Edit Dialog */}
+      <Dialog open={isEditingProduct} onOpenChange={setIsEditingProduct}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingProduct?.id ? t.edit : t.adminAddProduct}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t.adminProductName} (VI)</Label>
+                <Input value={editingProduct?.name || ''} onChange={e => setEditingProduct(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t.adminProductName} (EN)</Label>
+                <Input value={editingProduct?.nameEn || ''} onChange={e => setEditingProduct(p => ({ ...p, nameEn: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>{t.adminProductPrice}</Label><Input type="number" value={editingProduct?.price || 0} onChange={e => setEditingProduct(p => ({ ...p, price: Number(e.target.value) }))} /></div>
+              <div className="space-y-2"><Label>{t.adminProductCategory}</Label><Input value={editingProduct?.category || ''} onChange={e => setEditingProduct(p => ({ ...p, category: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Description (VI)</Label>
+                <textarea 
+                  className="w-full min-h-[80px] rounded-lg border border-border px-3 py-2 text-sm"
+                  value={editingProduct?.description || ''} 
+                  onChange={e => setEditingProduct(p => ({ ...p, description: e.target.value }))} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description (EN)</Label>
+                <textarea 
+                  className="w-full min-h-[80px] rounded-lg border border-border px-3 py-2 text-sm"
+                  value={editingProduct?.descriptionEn || ''} 
+                  onChange={e => setEditingProduct(p => ({ ...p, descriptionEn: e.target.value }))} 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2"><Label>{t.perPiece}</Label><Input value={editingProduct?.unit || ''} onChange={e => setEditingProduct(p => ({ ...p, unit: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Min Qty</Label><Input type="number" value={editingProduct?.minQuantity || 1} onChange={e => setEditingProduct(p => ({ ...p, minQuantity: Number(e.target.value) }))} /></div>
+              <div className="space-y-2"><Label>Stock Limit (-1 = ∞)</Label><Input type="number" value={editingProduct?.stockLimit ?? -1} onChange={e => setEditingProduct(p => ({ ...p, stockLimit: Number(e.target.value) }))} /></div>
+            </div>
+            <div className="space-y-2 flex items-center gap-2">
+              <input type="checkbox" checked={editingProduct?.isPromotion || false} onChange={e => setEditingProduct(p => ({ ...p, isPromotion: e.target.checked }))} /> 
+              <Label>Promotion (Glow Effect)</Label>
+            </div>
+          </div>
+          <DialogFooter><Button onClick={saveProduct}>{t.save}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Coupon Add Dialog */}
+      <Dialog open={isAddingCoupon} onOpenChange={setIsAddingCoupon}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t.adminAddCoupon}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2"><Label>{t.adminCouponCode}</Label><Input className="uppercase" value={newCoupon.code} onChange={e => setNewCoupon(c => ({ ...c, code: e.target.value.toUpperCase() }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>{t.adminCouponDiscount} (%)</Label><Input type="number" value={newCoupon.discountPercent} onChange={e => setNewCoupon(c => ({ ...c, discountPercent: Number(e.target.value) }))} /></div>
+              <div className="space-y-2"><Label>{t.adminCouponMaxUses}</Label><Input type="number" value={newCoupon.maxUses} onChange={e => setNewCoupon(c => ({ ...c, maxUses: Number(e.target.value) }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>{t.adminCouponMinSpent}</Label><Input type="number" value={newCoupon.minSpent} onChange={e => setNewCoupon(c => ({ ...c, minSpent: Number(e.target.value) }))} /></div>
+              <div className="space-y-2"><Label>{t.adminCouponExpires}</Label><Input type="date" value={newCoupon.expiresAt} onChange={e => setNewCoupon(c => ({ ...c, expiresAt: e.target.value }))} /></div>
+            </div>
+          </div>
+          <DialogFooter><Button className="bg-red-600" onClick={saveCoupon}>{t.save}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>

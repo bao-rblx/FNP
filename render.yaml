@@ -5,11 +5,14 @@
 # always comes back up functional.
 services:
   - type: web
-    name: flashnprint
+    name: polystore
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install && npm run build
+    # Render sets NODE_ENV=production, which makes `npm install` skip
+    # devDependencies — but vite/tailwind live there and are needed to
+    # build. --include=dev forces them in for the build step only.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true

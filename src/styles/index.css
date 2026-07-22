@@ -32,3 +32,9 @@ body {
 input, select, textarea {
   font-size: 16px !important;
 }
+
+/* PolyStore-inspired subtle neon text selection */
+::selection {
+  background: rgba(34, 211, 238, 0.35);
+  color: #fff;
+}

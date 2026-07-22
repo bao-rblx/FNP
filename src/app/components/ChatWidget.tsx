@@ -78,14 +78,14 @@ export function ChatWidget() {
             className="fixed bottom-24 right-4 md:bottom-24 md:right-8 w-80 md:w-96 bg-card text-card-foreground shadow-2xl rounded-3xl overflow-hidden z-50 ring-1 ring-border/50 flex flex-col h-[500px] max-h-[70vh]"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-500 text-white p-4 flex justify-between items-center shadow-md z-10">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex justify-between items-center shadow-md z-10">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                   <MessageCircle className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="font-bold text-sm tracking-tight">{t.chatSupport}</h3>
-                  <p className="text-[10px] text-red-50">{t.chatSupportDesc}</p>
+                  <p className="text-[10px] text-indigo-100">{t.chatSupportDesc}</p>
                 </div>
               </div>
               <button 
@@ -99,7 +99,7 @@ export function ChatWidget() {
             {/* Chat Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30">
               {loadError && (
-                <div className="text-xstext-amber-900 bg-amber-50 p-2 rounded-xl text-center border border-amber-200 shadow-sm">
+                <div className="text-xs text-amber-900 bg-amber-50 p-2 rounded-xl text-center border border-amber-200 shadow-sm">
                   {t.loadFailed}
                 </div>
               )}
@@ -123,12 +123,12 @@ export function ChatWidget() {
                     className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                       m.fromAdmin
                         ? 'bg-card border border-border text-foreground rounded-tl-sm'
-                        : 'bg-red-600 border border-red-700 text-white rounded-tr-sm'
+                        : 'bg-indigo-600 border border-indigo-700 text-white rounded-tr-sm'
                     }`}
                   >
                     {m.orderId && <p className="text-[10px] opacity-70 mb-0.5 font-medium">#{m.orderId}</p>}
                     <p className="whitespace-pre-wrap">{m.body}</p>
-                    <p className={`text-[9px] mt-1 font-medium ${m.fromAdmin ? 'text-muted-foreground/70' : 'text-red-100/70'}`}>
+                    <p className={`text-[9px] mt-1 font-medium ${m.fromAdmin ? 'text-muted-foreground/70' : 'text-indigo-100/70'}`}>
                       {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
@@ -140,7 +140,7 @@ export function ChatWidget() {
             {/* Input Area */}
             <div className="p-3 bg-card border-t border-border flex items-end gap-2 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
               <textarea
-                className="flex-1 max-h-32 min-h-[44px] rounded-2xl border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 bg-muted/50 resize-none transition-all"
+                className="flex-1 max-h-32 min-h-[44px] rounded-2xl border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 bg-muted/50 resize-none transition-all"
                 placeholder={t.supportTypeMessage}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -154,7 +154,7 @@ export function ChatWidget() {
               <button
                 onClick={() => void send()}
                 disabled={!text.trim()}
-                className="w-11 h-11 shrink-0 bg-red-600 hover:bg-red-700 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50 text-white rounded-full flex items-center justify-center transition-all shadow-md shadow-red-600/20"
+                className="w-11 h-11 shrink-0 bg-indigo-600 hover:bg-indigo-700 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50 text-white rounded-full flex items-center justify-center transition-all shadow-md shadow-indigo-600/20"
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
@@ -167,7 +167,7 @@ export function ChatWidget() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-28 right-4 md:bottom-8 md:right-8 w-14 h-14 bg-gradient-to-br from-red-600 to-red-500 text-white rounded-full shadow-lg shadow-red-600/30 flex items-center justify-center z-40 ring-4 ring-background"
+        className="fixed bottom-28 right-4 md:bottom-8 md:right-8 w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-full shadow-lg shadow-indigo-600/30 flex items-center justify-center z-40 ring-4 ring-background"
       >
         <AnimatePresence mode="wait">
           {isOpen ? (

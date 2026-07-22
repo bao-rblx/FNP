@@ -1,9 +1,11 @@
-/** Client-side rules (server enforces the same). */
-export const VANLANG_EMAIL_DOMAIN = '@vanlanguni.vn';
+/** Client-side rules for PolyStore auth. */
 
 export function isVanLangSchoolEmail(email: string): boolean {
-  const n = email.trim().toLowerCase();
-  return n.endsWith(VANLANG_EMAIL_DOMAIN);
+  return isValidEmail(email);
+}
+
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
 export function isNumericStudentId(id: string): boolean {
@@ -15,8 +17,8 @@ export type UserRole = 'user' | 'admin';
 export interface PublicUser {
   id: number;
   name: string;
-  schoolEmail: string;
-  studentId: string;
+  phone?: string | null;
+  schoolEmail: string | null;
   role: UserRole;
   lastLoginAt?: string | null;
   createdAt?: string | null;

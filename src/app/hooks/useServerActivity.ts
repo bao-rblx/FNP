@@ -100,12 +100,12 @@ export function useServerActivity(
               if (prefs.orders) {
                 if (newNotif) {
                   toast.info(copy.orderUpdate, { duration: 8000 });
-                  if (prefs.pushEnabled) showBrowserNotification('FlashNPrint', copy.orderUpdate);
+                  if (prefs.pushEnabled) showBrowserNotification('PolyStore', copy.orderUpdate);
                   onCustomerActivity?.();
                 }
                 if (newChat) {
                   toast.info(copy.supportReply, { duration: 8000 });
-                  if (prefs.pushEnabled) showBrowserNotification('FlashNPrint', copy.supportReply);
+                  if (prefs.pushEnabled) showBrowserNotification('PolyStore', copy.supportReply);
                   onCustomerActivity?.();
                 }
               }

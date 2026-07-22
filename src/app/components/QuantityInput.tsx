@@ -81,7 +81,7 @@ export function QuantityInput({
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleBlur}
-        className="w-16 text-center font-medium border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+        className="w-16 text-center font-medium border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
       />
       
       <button

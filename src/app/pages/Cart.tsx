@@ -1,29 +1,23 @@
 import { useState } from 'react';
-import { Trash2, ShoppingBag, FileText } from 'lucide-react';
+import { Trash2, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router';
-import { toast } from 'sonner';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
+
 import { DesktopNav } from '../components/DesktopNav';
 import { QuantityInput } from '../components/QuantityInput';
-import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translateUnit } from '../data/products';
 
 export default function Cart() {
-  const { user } = useAuth();
   const { cart, updateQuantity, removeFromCart, getCartTotal, discountRate } = useCart();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const finalTotal = getCartTotal() * (1 - discountRate);
 
   const goToCheckout = () => {
-    if (!user) {
-      toast.info(t.loginRequiredCheckout);
-      navigate('/auth?return=/checkout');
-      return;
-    }
     navigate('/checkout');
   };
 
@@ -39,6 +33,8 @@ export default function Cart() {
           <Header title={t.myCart} />
           
           <div className="max-w-6xl mx-auto px-4 pt-20 text-center">
+            <BackButton />
+
             <div className="bg-muted/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
               <ShoppingBag className="w-12 h-12 text-gray-400" />
             </div>
@@ -47,8 +43,8 @@ export default function Cart() {
               {t.emptyCartDesc}
             </p>
             <Link
-              to="/services/printing"
-              className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700"
+              to="/services/models"
+              className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:opacity-90"
             >
               {t.viewServices}
             </Link>
@@ -65,6 +61,8 @@ export default function Cart() {
         <Header title={t.myCart} />
 
         <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+          <BackButton />
+
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -95,30 +93,15 @@ export default function Cart() {
                         <h3 className="font-medium text-sm md:text-base">{language === "en" && item.nameEn ? item.nameEn : item.name}</h3>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="text-red-500 hover:text-red-600 p-1 flex-shrink-0"
+                          className="text-muted-foreground hover:text-rose-500 p-1 flex-shrink-0"
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                       <p className="text-muted-foreground text-xs md:text-sm mb-2">{translateUnit(item.unit, language)}</p>
                       
-                      {/* Show uploaded files if printing service */}
-                      {item.category === 'printing' && item.files && item.files.length > 0 && (
-                        <div className="mb-2 p-2 bg-blue-50 rounded text-xs">
-                          <div className="flex items-center gap-1 text-blue-700 font-medium mb-1">
-                            <FileText className="w-3 h-3" />
-                            <span>{item.files.length} file(s)</span>
-                          </div>
-                          {item.files.map((file, idx) => (
-                            <div key={idx} className="text-blue-600 truncate">
-                              {file.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
                       <div className="flex items-center justify-between gap-4">
-                        <p className="text-red-600 font-semibold text-sm md:text-base">
+                        <p className="text-primary font-semibold text-sm md:text-base">
                           {formatPrice(item.price)}
                         </p>
                         
@@ -157,14 +140,14 @@ export default function Cart() {
                     <span className="font-semibold">{formatPrice(getCartTotal())}</span>
                   </div>
                   {discountRate > 0 && (
-                    <div className="flex justify-between items-center text-red-600 bg-red-50 dark:bg-red-500/10 p-2.5 rounded-xl">
+                    <div className="flex justify-between items-center text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 p-2.5 rounded-xl">
                       <span className="font-medium">Discount ({discountRate * 100}%)</span>
                       <span className="font-bold">-{formatPrice(getCartTotal() * discountRate)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center pt-4 border-t border-border/50">
                     <span className="font-bold text-lg">{t.total}</span>
-                    <span className="font-black text-2xl text-red-600 tracking-tight">
+                    <span className="font-black text-2xl text-primary tracking-tight">
                       {formatPrice(finalTotal)}
                     </span>
                   </div>
@@ -175,7 +158,7 @@ export default function Cart() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={goToCheckout}
-                  className="hidden md:flex w-full bg-red-600 text-white py-4 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 items-center justify-center gap-3 mt-8 text-lg"
+                  className="hidden md:flex w-full bg-primary text-primary-foreground py-4 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg shadow-primary/30 items-center justify-center gap-3 mt-8 text-lg"
                 >
                   {t.checkout}
                   <span aria-hidden>→</span>
@@ -191,7 +174,7 @@ export default function Cart() {
             <button
               type="button"
               onClick={goToCheckout}
-              className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+              className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
             >
               {t.checkout} - {formatPrice(getCartTotal() * (1 - discountRate))}
             </button>

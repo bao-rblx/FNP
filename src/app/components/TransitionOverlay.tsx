@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 type TransitionType = 'language' | 'theme-to-light' | 'theme-to-dark';
 
@@ -24,18 +24,19 @@ export function TransitionOverlay() {
     _trigger = (type, callback) => {
       const style =
         type === 'language'
-          ? { backgroundColor: 'rgba(220, 38, 38, 0.12)', backdropFilter: 'blur(6px)' }
+          ? { backgroundColor: 'rgba(99, 102, 241, 0.08)', backdropFilter: 'blur(8px)' }
           : type === 'theme-to-light'
-            ? { backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(4px)' }
-            : { backgroundColor: 'rgba(8, 8, 12, 0.9)', backdropFilter: 'blur(4px)' };
+            ? { backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(4px)' }
+            : { backgroundColor: 'rgba(10, 10, 15, 0.95)', backdropFilter: 'blur(4px)' };
 
       setOverlayStyle(style);
       setVisible(true);
 
+      // Logos/Transitions usually need a bit more time to feel premium
       setTimeout(() => {
         callback();
-        setTimeout(() => setVisible(false), 80);
-      }, 60);
+        setTimeout(() => setVisible(false), 400); // Wait for logo to show
+      }, 500);
     };
 
     return () => {
@@ -44,15 +45,39 @@ export function TransitionOverlay() {
   }, []);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[200] pointer-events-none"
-      style={overlayStyle}
-      animate={{ opacity: visible ? 1 : 0 }}
-      transition={
-        visible
-          ? { duration: 0.06, ease: 'easeIn' }
-          : { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
-      }
-    />
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          style={overlayStyle}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, filter: "blur(8px)" }}
+            animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+            exit={{ scale: 1.1, opacity: 0, filter: "blur(8px)" }}
+            transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 via-cyan-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black italic shadow-2xl shadow-indigo-500/40">
+              3D
+            </div>
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.4, 1, 0.4] }}
+                  transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.2 }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

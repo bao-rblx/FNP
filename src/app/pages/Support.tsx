@@ -116,14 +116,14 @@ export default function Support() {
                     className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
                       m.fromAdmin
                         ? 'bg-muted/50 text-foreground rounded-tl-sm'
-                        : 'bg-red-600 text-white rounded-tr-sm'
+                        : 'bg-primary text-primary-foreground rounded-tr-sm'
                     }`}
                   >
                     {m.orderId && (
                       <p className="text-[10px] opacity-80 mb-0.5">#{m.orderId}</p>
                     )}
                     <p className="whitespace-pre-wrap">{m.body}</p>
-                    <p className={`text-[10px] mt-1 ${m.fromAdmin ? 'text-muted-foreground' : 'text-red-100'}`}>
+                    <p className={`text-[10px] mt-1 ${m.fromAdmin ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}>
                       {new Date(m.createdAt).toLocaleString()}
                     </p>
                   </div>
@@ -145,11 +145,11 @@ export default function Support() {
                 }
               }}
             />
-            <Button type="button" className="bg-red-600 hover:bg-red-700 shrink-0" onClick={() => void send()}>
+            <Button type="button" className="bg-primary hover:bg-primary/90 shrink-0" onClick={() => void send()}>
               {t.supportSend}
             </Button>
           </div>
-          <Link to="/orders" className="text-center text-sm text-red-600 mt-3 underline">
+          <Link to="/orders" className="text-center text-sm text-primary mt-3 underline">
             {t.myOrders}
           </Link>
         </div>

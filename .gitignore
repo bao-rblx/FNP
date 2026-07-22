@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Secrets
+.env
+
+# SQLite databases (re-seeded on startup; never ship local data)
+data/*.sqlite
+data/*.sqlite-*
+server/*.sqlite
+server/*.db
+database.sqlite
+
+# Replit / local tooling state
+.local
+.replit
+replit.md
+
+# Scratch & temp
+tmp
+out.txt
+*.tmp
+~$*
+~WRL*.tmp
+
+# Office temp/backup docs
+*.docx

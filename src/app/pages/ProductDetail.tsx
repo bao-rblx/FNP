@@ -1,96 +1,89 @@
-import React from 'react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Upload, FileText, X } from 'lucide-react';
+import { ShoppingCart, Box, CheckCircle2, Star } from 'lucide-react';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
 import { DesktopNav } from '../components/DesktopNav';
 import { QuantityInput } from '../components/QuantityInput';
-import { products, type ProductVariant } from '../data/products';
+import { getProducts, type ApiProduct } from '../lib/api';
+import { translateUnit } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
+import { PolyModelViewer } from '../components/PolyModelViewer';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { t, language } = useLanguage();
-  const product = products.find((p) => p.id === id);
+  
+  const [product, setProduct] = useState<ApiProduct | null>(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    product?.variants ? product.variants[0] : null
-  );
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [flyAnim, setFlyAnim] = useState<{ src: string; from: DOMRect; to: DOMRect } | null>(null);
   const [cartBounce, setCartBounce] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const cartBtnRef = useRef<HTMLButtonElement>(null);
 
-  React.useEffect(() => {
-    if (product?.variants?.length) {
-      setSelectedVariant(product.variants[0]);
-    } else {
-      setSelectedVariant(null);
-    }
-  }, [product]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getProducts();
+        const found = data.find(p => p.id === id);
+        if (found) {
+          setProduct(found);
+          if (found.variants && found.variants.length > 0) {
+            setSelectedVariant(found.variants[0]);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, [id]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
   };
+
+  if (loading) {
+    return (
+      <>
+        <DesktopNav />
+        <div className="min-h-screen bg-muted flex items-center justify-center md:pt-16">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </>
+    );
+  }
 
   if (!product) {
     return (
       <>
         <DesktopNav />
         <div className="min-h-screen bg-muted flex items-center justify-center md:pt-16">
-          <p>Product not found</p>
+          <p className="text-xl font-bold text-muted-foreground">{t.homeSearchNoResults}</p>
         </div>
       </>
     );
   }
 
   const minQty = product.minQuantity || 1;
-  const isPrintingService = product.category === 'printing';
+  const isModelProduct = product.category === 'models' && Boolean(product.modelViewerUrl);
   const displayName = language === 'en' && product.nameEn ? product.nameEn : product.name;
   const displayDesc = language === 'en' && product.descriptionEn ? product.descriptionEn : product.description;
-  const categoryLabel =
-    product.category === 'printing'
-      ? t.printingServices
-      : product.category === 'paper'
-        ? t.paperProducts
-        : product.category === 'supplies'
-          ? t.officeSupplies
-          : product.category === 'services'
-            ? t.servicesCategory
-            : t.goodsCategory;
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      return ['pdf', 'doc', 'docx'].includes(extension || '');
-    });
-
-    if (validFiles.length !== files.length) {
-      toast.error('Only PDF, DOC, and DOCX files are allowed');
-    }
-
-    setUploadedFiles(prev => [...prev, ...validFiles]);
-    toast.success(`${validFiles.length} file(s) uploaded`);
-  };
-
-  const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  
+  const categoryLabel = 
+    product.category === 'models' ? (language === 'en' ? '3D Models' : 'Mô hình 3D') :
+    (language === 'en' ? '3D Models' : 'Mô hình 3D');
 
   const handleAddToCart = () => {
-    if (isPrintingService && uploadedFiles.length === 0) {
-      toast.error(t.uploadFilesDesc);
-      return;
-    }
-    // Trigger flying image animation
     if (imageRef.current && cartBtnRef.current) {
       const from = imageRef.current.getBoundingClientRect();
       const to = cartBtnRef.current.getBoundingClientRect();
@@ -101,270 +94,162 @@ export default function ProductDetail() {
         setTimeout(() => setCartBounce(false), 600);
       }, 700);
     }
-    addToCart(product, quantity, isPrintingService ? uploadedFiles : undefined, selectedVariant);
+    // We cast it to any for simplicity here to avoid deep type matching issues with products.ts vs api.ts
+    addToCart(product as any, quantity, undefined, selectedVariant);
     toast.success(`${t.addToCart}: ${quantity} × ${displayName}`);
   };
 
   const handleCheckout = () => {
-    if (isPrintingService && uploadedFiles.length === 0) {
-      toast.error(t.uploadFilesDesc);
-      return;
-    }
-    addToCart(product, quantity, isPrintingService ? uploadedFiles : undefined, selectedVariant);
+    addToCart(product as any, quantity, undefined, selectedVariant);
     navigate('/cart');
   };
 
   return (
     <>
       <DesktopNav />
-      <div className="min-h-screen bg-muted pb-32 md:pb-8 md:pt-16">
-        <Header title="Product Details" showBack />
+      <div className={`min-h-screen pb-32 md:pb-8 md:pt-16 ${isModelProduct ? 'bg-[#07080e] text-white' : 'bg-muted'}`}>
+        <Header title={t.services} showBack />
 
         <div className="max-w-6xl mx-auto px-4 py-4">
+          <BackButton />
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-            {/* Left Column - Image */}
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <div className="bg-card text-card-foreground rounded-2xl md:rounded-3xl overflow-hidden shadow-lg shadow-black/5 ring-1 ring-border/50 sticky top-24">
-                <div className="aspect-square max-h-72 md:aspect-square md:max-h-none bg-muted/20 overflow-hidden relative group">
-                  <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10 pointer-events-none" />
-                  <img
-                    ref={imageRef}
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                </div>
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              <div className={`rounded-3xl overflow-hidden shadow-xl sticky top-24 ${isModelProduct ? 'border border-violet-400/20 bg-white/[0.04]' : 'bg-card border border-border'}`}>
+                {isModelProduct ? (
+                  <>
+                    <img ref={imageRef} src={product.image} alt={displayName} className="hidden" />
+                    <PolyModelViewer modelUrl={product.modelViewerUrl!} accentColor={product.accentColor} name={displayName} />
+                  </>
+                ) : (
+                  <div className="aspect-square bg-muted/20 relative group">
+                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10" />
+                    <img
+                      ref={imageRef}
+                      src={product.image}
+                      alt={displayName}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  </div>
+                )}
               </div>
             </motion.div>
 
-            {/* Right Column - Details */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              className="space-y-6"
-            >
-              {/* Product Info */}
-              <div className="bg-card text-card-foreground rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-lg shadow-black/5 ring-1 ring-border/50">
-                <h1 className="text-2xl md:text-4xl font-bold mb-3 tracking-tight leading-tight">{displayName}</h1>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <div className={`rounded-[2rem] p-8 shadow-xl border ${isModelProduct ? 'bg-white/[0.04] border-violet-400/20' : 'bg-card border-border'}`}>
+                <div className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${isModelProduct ? 'border border-cyan-300/30 bg-cyan-300/10 text-cyan-200' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                  <Box className="h-4 w-4" />
+                  {categoryLabel}
+                </div>
+                <h1 className="text-3xl font-black mb-3 tracking-tight">{displayName}</h1>
+                {product.subName && <p className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-violet-300">{product.subName}</p>}
                 <div className="flex items-baseline gap-2 mb-6">
-                  <span className="text-4xl font-extrabold text-red-600 tracking-tight">
+                  <span className={`text-4xl font-bold ${isModelProduct ? 'text-cyan-200' : 'text-indigo-400'}`}>
                     {formatPrice(selectedVariant ? selectedVariant.price : product.price)}
                   </span>
-                  <span className="text-muted-foreground font-medium">/ {product.unit}</span>
+                  <span className="text-muted-foreground font-medium">/ {translateUnit(product.unit, language)}</span>
                 </div>
-                <p className="text-muted-foreground/90 dark:text-gray-300 leading-relaxed text-base md:text-lg">{displayDesc}</p>
+                <p className="text-muted-foreground leading-relaxed text-lg">{displayDesc}</p>
               </div>
 
-              {/* Variants */}
+              {isModelProduct && (
+                <div className="rounded-[2rem] border border-violet-400/20 bg-white/[0.04] p-8 shadow-xl">
+                  <h2 className="mb-5 flex items-center gap-2 text-lg font-black uppercase tracking-tight">
+                    <Star className="h-5 w-5 text-violet-300" />
+                    PolyStore Asset Specs
+                  </h2>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {[
+                      ['Rating', `${product.rating ?? 4.9} / 5 (${product.reviewCount ?? 0})`],
+                      ['Polygons', product.polyCount],
+                      ['Vertices', product.vertexCount],
+                      ['Textures', product.textures],
+                      ['Rigged', product.rigged ? 'Yes' : 'No'],
+                      ['Animated', product.animated ? 'Yes' : 'No'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+                        <p className="mt-1 font-black text-white">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {(product.formats ?? ['GLB']).map((format) => (
+                      <span key={format} className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-200">{format}</span>
+                    ))}
+                    {(product.tags ?? []).map((tag) => (
+                      <span key={tag} className="rounded-full border border-violet-300/30 bg-violet-300/10 px-3 py-1 text-xs font-bold text-violet-200">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {product.variants && product.variants.length > 0 && (
-                <div className="bg-card text-card-foreground rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-lg shadow-black/5 ring-1 ring-border/50">
-                  <h3 className="font-semibold mb-4 text-base md:text-lg">Tùy chọn:</h3>
-                  <div className="grid grid-cols-2 gap-3 md:gap-4">
-                    {product.variants.map((variant) => (
+                <div className="bg-card rounded-[2rem] p-8 shadow-xl border border-border">
+                  <h3 className="font-bold mb-4 text-lg">Tùy chọn:</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {product.variants.map((v) => (
                       <button
-                        key={variant.id}
-                        onClick={() => setSelectedVariant(variant)}
-                        className={`flex flex-col items-center justify-center p-3 md:p-4 rounded-xl border-2 transition-all ${
-                          selectedVariant?.id === variant.id 
-                            ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 font-semibold' 
-                            : 'border-border hover:border-muted-foreground/30 text-muted-foreground'
+                        key={v.id}
+                        onClick={() => setSelectedVariant(v)}
+                        className={`p-4 rounded-2xl border-2 transition-all text-center ${
+                          selectedVariant?.id === v.id
+                            ? 'border-indigo-600 bg-indigo-500/10 text-indigo-400 font-bold'
+                            : 'border-border text-muted-foreground'
                         }`}
                       >
-                        <span className="font-medium text-sm md:text-base">{variant.name}</span>
-                        <span className="text-xs md:text-sm font-semibold mt-1">{formatPrice(variant.price)}</span>
+                        {v.name} - {formatPrice(v.price)}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* File Upload for Printing Services */}
-              {isPrintingService && (
-                <div className="bg-card text-card-foreground rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-lg shadow-black/5 ring-1 ring-border/50">
-                  <h2 className="font-semibold mb-3 flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-red-600" />
-                    {t.uploadFiles}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-4">{t.uploadFilesDesc}</p>
-                  
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-border rounded-lg p-4 hover:border-red-500 hover:bg-red-50 transition-colors flex flex-col items-center gap-2"
-                  >
-                    <Upload className="w-8 h-8 text-gray-400" />
-                    <span className="text-sm font-medium text-muted-foreground">{t.uploadBtn}</span>
-                    <span className="text-xs text-muted-foreground">PDF, DOC, DOCX</span>
-                  </button>
-
-                  {/* Uploaded Files List */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {uploadedFiles.length} file(s) uploaded:
-                      </p>
-                      {uploadedFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                            <span className="text-sm text-blue-700 truncate">{file.name}</span>
-                            <span className="text-xs text-blue-500 flex-shrink-0">
-                              ({(file.size / 1024).toFixed(1)} KB)
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => removeFile(index)}
-                            className="p-1 hover:bg-blue-100 rounded flex-shrink-0"
-                          >
-                            <X className="w-4 h-4 text-blue-600" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Specifications */}
-              <div className="bg-card text-card-foreground rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-lg shadow-black/5 ring-1 ring-border/50">
-                <h2 className="font-semibold text-lg mb-4">{t.specifications}</h2>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground">Category</span>
-                    <span className="font-medium">{categoryLabel}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-border/50">
-                    <span className="text-muted-foreground">Unit</span>
-                    <span className="font-medium">{product.unit}</span>
-                  </div>
-                  {product.minQuantity && (
-                    <div className="flex justify-between py-2 border-b border-border/50">
-                      <span className="text-muted-foreground">Min. Quantity</span>
-                      <span className="font-medium">{product.minQuantity}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">{t.estimatedTime}</span>
-                    <span className="font-medium">15-30 mins</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quantity & Add to Cart - Desktop */}
-              <div className="hidden md:block bg-card text-card-foreground rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-lg shadow-black/5 ring-1 ring-border/50">
+              <div className={`rounded-[2rem] p-8 shadow-xl border ${isModelProduct ? 'bg-white/[0.04] border-violet-400/20' : 'bg-card border-border'}`}>
                 <div className="flex items-center gap-4 mb-6">
-                  <span className="font-semibold text-lg">{t.quantity}:</span>
-                  <QuantityInput
-                    value={quantity}
-                    onChange={setQuantity}
-                    min={minQty}
-                  />
+                  <span className="font-bold text-lg">{t.quantity}:</span>
+                  <QuantityInput value={quantity} onChange={setQuantity} min={minQty} />
                 </div>
-                
-                <div className="flex gap-3">
+                <div className="flex gap-4">
                   <motion.button
                     ref={cartBtnRef}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     animate={cartBounce ? { scale: [1, 1.3, 0.9, 1.1, 1] } : {}}
-                    transition={{ duration: 0.5 }}
                     onClick={handleAddToCart}
-                    className="flex-1 border-2 border-red-600 text-red-600 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-50 transition-colors shadow-sm text-lg md:text-xl"
+                    className={`flex-1 border-2 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 ${isModelProduct ? 'border-cyan-300 text-cyan-200 hover:bg-cyan-300/10' : 'border-indigo-600 text-indigo-400 hover:bg-indigo-500/10'}`}
                   >
                     <ShoppingCart className="w-6 h-6" />
                     {t.addToCart}
                   </motion.button>
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     onClick={handleCheckout}
-                    className="flex-[1.5] bg-red-600 text-white py-4 rounded-xl font-bold flex items-center justify-center hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30 text-lg md:text-xl"
+                    className={`flex-[1.5] text-white py-4 rounded-2xl font-bold shadow-lg ${isModelProduct ? 'bg-violet-600 shadow-violet-600/30 hover:bg-violet-500' : 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-indigo-600/30 hover:from-indigo-700 hover:to-purple-700'}`}
                   >
-                    {t.checkout} — {formatPrice((selectedVariant?.price ?? product.price) * quantity)}
+                    {t.checkout}
                   </motion.button>
                 </div>
               </div>
             </motion.div>
           </div>
         </div>
-
-        {/* Bottom Action Bar - Mobile */}
-        <div className="md:hidden fixed bottom-24 left-0 right-0 bg-card/95 backdrop-blur-md text-card-foreground border-t border-border p-3 z-40 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]">
-          <div className="max-w-md mx-auto flex items-center gap-4">
-            {/* Quantity Selector */}
-            <QuantityInput
-              value={quantity}
-              onChange={setQuantity}
-              min={minQty}
-            />
-
-            {/* Action Buttons */}
-            <div className="flex-1 flex gap-2">
-              <button
-                ref={cartBtnRef}
-                onClick={handleAddToCart}
-                className="w-14 border-2 border-red-600 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-50 transition-colors shrink-0"
-              >
-                <ShoppingCart className="w-6 h-6" />
-              </button>
-              <button
-                onClick={handleCheckout}
-                className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center hover:bg-red-700 transition-colors shadow-md shadow-red-600/30"
-              >
-                {t.checkout} — {formatPrice((selectedVariant?.price ?? product.price) * quantity)}
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Flying image animation portal */}
       <AnimatePresence>
         {flyAnim && (
           <motion.img
-            key="fly"
             src={flyAnim.src}
             initial={{
-              position: 'fixed',
-              left: flyAnim.from.left + flyAnim.from.width / 2 - 40,
-              top: flyAnim.from.top + flyAnim.from.height / 2 - 40,
-              width: 80,
-              height: 80,
-              borderRadius: 16,
-              objectFit: 'cover',
-              zIndex: 9999,
-              opacity: 1,
-              scale: 1,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+              position: 'fixed', zIndex: 9999, borderRadius: 20, objectFit: 'cover',
+              left: flyAnim.from.left + flyAnim.from.width/2 - 50,
+              top: flyAnim.from.top + flyAnim.from.height/2 - 50,
+              width: 100, height: 100, opacity: 1
             }}
             animate={{
-              left: flyAnim.to.left + flyAnim.to.width / 2 - 16,
-              top: flyAnim.to.top + flyAnim.to.height / 2 - 16,
-              width: 32,
-              height: 32,
-              borderRadius: 999,
-              opacity: 0.3,
-              scale: 0.4,
+              left: flyAnim.to.left + flyAnim.to.width/2 - 20,
+              top: flyAnim.to.top + flyAnim.to.height/2 - 20,
+              width: 40, height: 40, opacity: 0.5, borderRadius: 100
             }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.65, ease: [0.4, 0, 0.2, 1] }}
-            className="pointer-events-none"
+            transition={{ duration: 0.7, ease: "anticipate" }}
           />
         )}
       </AnimatePresence>

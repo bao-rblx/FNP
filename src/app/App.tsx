@@ -63,7 +63,7 @@ function AppContent() {
               transition={{ delay: 0.2, duration: 0.8 }}
               className="flex flex-col items-center"
             >
-              <div className="w-20 h-20 bg-gradient-to-br from-red-600 to-red-500 rounded-3xl shadow-xl flex items-center justify-center text-white mb-6 relative overflow-hidden">
+              <div className="w-20 h-20 bg-gradient-to-br from-indigo-600 via-cyan-500 to-purple-600 rounded-3xl shadow-xl flex items-center justify-center text-white mb-6 relative overflow-hidden shadow-indigo-500/30">
                 <motion.div 
                   className="absolute inset-0 bg-white/20"
                   animate={{
@@ -75,16 +75,16 @@ function AppContent() {
                     ease: "linear"
                   }}
                 />
-                <span className="text-3xl font-black italic tracking-tighter">FNP</span>
+                <span className="text-2xl font-black italic tracking-tighter">POLY</span>
               </div>
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-400">
-                FlashNPrint
+              <h1 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-cyan-400 to-purple-400">
+                PolyStore 3D
               </h1>
               <motion.div 
                 className="w-48 h-1 bg-border/50 rounded-full mt-8 overflow-hidden"
               >
                 <motion.div
-                  className="h-full bg-red-600 rounded-full"
+                  className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-full"
                   initial={{ width: "0%" }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 1.5, ease: "easeInOut" }}
@@ -108,7 +108,7 @@ function AppContent() {
 export default function App() {
   return (
     <LanguageProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <AuthProvider>
           <AppContent />
         </AuthProvider>

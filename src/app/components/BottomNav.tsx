@@ -36,22 +36,22 @@ export function BottomNav() {
               <motion.div
                 animate={isActive ? { scale: 1.15, y: -1 } : { scale: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className={`relative w-10 h-8 flex items-center justify-center rounded-xl ${isActive ? 'bg-red-600/10' : ''}`}
+                className={`relative w-10 h-8 flex items-center justify-center rounded-xl ${isActive ? 'bg-indigo-600/15 dark:bg-indigo-500/20' : ''}`}
               >
                 <Icon
                   className={`w-5 h-5 transition-colors duration-200 ${
-                    isActive ? 'text-red-600' : 'text-muted-foreground'
+                    isActive ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-muted-foreground'
                   }`}
                 />
                 {item.badge != null && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 leading-none">
+                  <span className="absolute -top-1 -right-1 bg-cyan-500 text-slate-950 text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 leading-none">
                     {item.badge > 9 ? '9+' : item.badge}
                   </span>
                 )}
               </motion.div>
               <span
                 className={`text-[10px] font-medium transition-colors duration-200 ${
-                  isActive ? 'text-red-600' : 'text-muted-foreground'
+                  isActive ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-muted-foreground'
                 }`}
               >
                 {item.label}

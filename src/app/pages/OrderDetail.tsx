@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
-import { MapPin, Clock, CreditCard, CheckCircle2, Bell, X } from 'lucide-react';
+import { MapPin, Clock, CreditCard, CheckCircle2, Bell, X, QrCode } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Header } from '../components/Header';
+import { BackButton } from '../components/BackButton';
 import { DesktopNav } from '../components/DesktopNav';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { products } from '../data/products';
-import { getOrder, postCancelOrder, ApiError, type ApiOrder } from '../lib/api';
+import { getOrder, postCancelOrder, postOrderReceived, postPaymentSubmitted, ApiError, type ApiOrder } from '../lib/api';
+import { buildVietQrUrl, getVietQrConfig, buildTransferInfo } from '../lib/vietqr';
 import type { CartItem, Order } from '../data/products';
 
 function toOrder(o: ApiOrder): Order {
@@ -24,6 +26,8 @@ function toOrder(o: ApiOrder): Order {
     deliveryAddress: o.deliveryAddress,
     pickupLocation: o.pickupLocation,
     paymentMethod: o.paymentMethod,
+    paymentStatus: o.paymentStatus,
+    receivedPoints: o.receivedPoints,
     cancelReason: o.cancelReason,
     notifications: o.notifications,
   };
@@ -39,16 +43,42 @@ export default function OrderDetail() {
   const [loading, setLoading] = useState(true);
   const [cancelNote, setCancelNote] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!authReady) return;
     if (!user || !id) { setLoading(false); setOrder(null); return; }
-    let cancelled = false; setOrder(null); setLoading(true);
-    getOrder(id)
-      .then((o) => { if (!cancelled) setOrder(toOrder(o)); })
-      .catch((e) => { if (!cancelled) { if (e instanceof ApiError && e.status === 404) setOrder(null); else setOrder(null); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    let cancelled = false;
+    setOrder(null); setLoading(true); setNotFound(false); setLoadError(false);
+
+    // A freshly created order may not be queryable for a few ms; retry
+    // transient/network failures a couple of times before giving up.
+    const load = async (attempt = 0): Promise<void> => {
+      try {
+        const o = await getOrder(id);
+        if (!cancelled) setOrder(toOrder(o));
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof ApiError && e.status === 404) {
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 500));
+            return load(attempt + 1);
+          }
+          setNotFound(true);
+        } else {
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 500));
+            return load(attempt + 1);
+          }
+          setLoadError(true);
+        }
+      }
+    };
+
+    load().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [authReady, user?.id, id]);
 
@@ -85,7 +115,7 @@ export default function OrderDetail() {
           <Header title={t.orderStatus} showBack />
           <div className="max-w-md mx-auto px-4 pt-20 text-center space-y-4">
             <p className="text-muted-foreground">{t.loginRequiredCheckout}</p>
-            <Link to={`/auth?return=/order/${id}`} className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold">{t.loginTitle}</Link>
+            <Link to={`/auth?return=/order/${id}`} className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold">{t.loginTitle}</Link>
           </div>
         </div>
       </>
@@ -98,21 +128,26 @@ export default function OrderDetail() {
         <DesktopNav />
         <div className="min-h-screen bg-muted pb-20 md:pt-16">
           <Header title={t.orderStatus} showBack />
-          <div className="max-w-md mx-auto px-4 pt-20 text-center text-muted-foreground">{t.noOrdersDesc}</div>
+          <div className="max-w-md mx-auto px-4 pt-20 text-center space-y-4">
+            <p className="text-muted-foreground">
+              {loadError ? (language === 'en' ? "Couldn't load this order. Check your connection and try again." : 'Không tải được đơn hàng. Kiểm tra kết nối rồi thử lại.') : t.noOrdersDesc}
+            </p>
+            {loadError && (
+              <Button onClick={() => navigate(0)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                {language === 'en' ? 'Retry' : 'Thử lại'}
+              </Button>
+            )}
+          </div>
         </div>
       </>
     );
   }
 
-  const statusSteps = [
-    { label: t.orderStepPlaced, completed: true },
-    { label: t.processing_status, completed: ['processing', 'ready', 'completed'].includes(order.status) },
-    { label: t.ready, completed: ['ready', 'completed'].includes(order.status) },
-    { label: t.completed, completed: order.status === 'completed' },
-  ];
-
   const deliveryFee = order.deliveryAddress ? 15000 : 0;
   const payLabel = order.paymentMethod === 'cash' ? t.cash : order.paymentMethod === 'card' ? t.cardPayment : t.cardPayment;
+  const payableTotal = order.total + deliveryFee;
+  const paymentStatus = order.paymentStatus || (order.paymentMethod === 'cash' ? 'paid' : 'unpaid');
+  const paymentLabel = paymentStatus === 'paid' ? 'Đã thanh toán' : paymentStatus === 'pending_verification' ? 'Chờ admin xác nhận' : 'Chưa thanh toán';
 
   return (
     <div className="min-h-screen bg-muted pb-36 md:pb-12 md:pt-16">
@@ -120,6 +155,7 @@ export default function OrderDetail() {
       <Header title={t.orderStatus} showBack />
 
       <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+        <BackButton />
         {/* Page header row */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -137,37 +173,39 @@ export default function OrderDetail() {
 
           {/* LEFT COLUMN — Status + Notifications */}
           <div className="space-y-5">
-            {/* Status timeline */}
+            {/* Purchase status — digital delivery, no shipping timeline */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card text-card-foreground rounded-2xl md:rounded-3xl p-6 shadow-lg shadow-black/5 ring-1 ring-border/50">
-              <h2 className="font-bold text-base mb-5 tracking-tight">{t.orderStatus}</h2>
-              <div className="relative">
-                {order.status === 'cancelled' ? (
-                  <div className="flex items-start mb-4">
-                    <div className="relative flex flex-col items-center mr-4">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]">
-                        <X className="w-5 h-5" />
-                      </div>
-                    </div>
-                    <div className="flex-1 pt-1"><p className="font-medium text-red-600">{t.cancelled}</p></div>
+              {order.status === 'cancelled' ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                    <X className="w-6 h-6" />
                   </div>
-                ) : statusSteps.map((step, index) => {
-                  const isActive = step.completed && (index === statusSteps.length - 1 || !statusSteps[index + 1].completed);
-                  return (
-                    <div key={step.label} className="flex items-start mb-4 last:mb-0">
-                      <div className="relative flex flex-col items-center mr-4">
-                        <div className={`relative w-8 h-8 rounded-full flex items-center justify-center ${step.completed ? 'bg-red-600 text-white' : 'bg-accent text-gray-400'}`}>
-                          {isActive && <div className="absolute inset-0 rounded-full bg-red-600 animate-ping opacity-75"></div>}
-                          <div className="relative z-10 w-full h-full rounded-full flex items-center justify-center bg-[inherit] text-[inherit]">
-                            {step.completed ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-2 h-2 bg-gray-400 rounded-full" />}
-                          </div>
-                        </div>
-                        {index < statusSteps.length - 1 && <div className={`w-0.5 h-8 ${step.completed && statusSteps[index + 1].completed ? 'bg-red-600' : 'bg-accent'}`} />}
-                      </div>
-                      <div className="flex-1 pt-1"><p className={`font-medium ${step.completed ? 'text-foreground' : 'text-gray-400'}`}>{step.label}</p></div>
-                    </div>
-                  );
-                })}
-              </div>
+                  <div>
+                    <p className="font-bold text-base">{t.cancelled}</p>
+                    <p className="text-sm text-muted-foreground">{language === 'en' ? 'This order was cancelled.' : 'Đơn hàng này đã bị hủy.'}</p>
+                  </div>
+                </div>
+              ) : paymentStatus === 'paid' ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-green-600 text-white shadow-md shadow-green-600/30">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-base">{language === 'en' ? 'Purchase complete' : 'Thanh toán hoàn tất'}</p>
+                    <p className="text-sm text-muted-foreground">{language === 'en' ? 'Your files are ready to download below.' : 'Tệp của bạn đã sẵn sàng tải xuống bên dưới.'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-500 text-white shadow-md shadow-amber-500/30">
+                    <Clock className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-base">{language === 'en' ? 'Awaiting payment' : 'Chờ thanh toán'}</p>
+                    <p className="text-sm text-muted-foreground">{language === 'en' ? 'Complete payment to unlock your downloads.' : 'Hoàn tất thanh toán để mở khóa tải xuống.'}</p>
+                  </div>
+                </div>
+              )}
             </motion.div>
 
             {/* Cancelled reason */}
@@ -197,24 +235,49 @@ export default function OrderDetail() {
               </motion.div>
             )}
 
-            {/* Location + Time */}
+            {/* Instant 3D Downloads Card */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card text-card-foreground rounded-2xl p-5 shadow-sm ring-1 ring-border/50 space-y-4">
               <div className="flex items-start gap-4">
-                <div className="bg-red-100 p-2.5 rounded-xl"><MapPin className="w-5 h-5 text-red-600" /></div>
+                <div className="bg-indigo-500/10 p-2.5 rounded-xl"><CheckCircle2 className="w-5 h-5 text-indigo-500" /></div>
                 <div>
-                  <p className="font-bold text-sm">{order.pickupLocation ? t.pickup : t.delivery}</p>
-                  <p className="text-sm text-muted-foreground">{order.pickupLocation || order.deliveryAddress}</p>
+                  <p className="font-bold text-sm">Instant Digital Delivery</p>
+                  <p className="text-sm text-muted-foreground">High-Speed CDN Asset Access</p>
                 </div>
               </div>
-              {order.estimatedTime && (
-                <div className="flex items-start gap-4 pt-4 border-t border-border/50">
-                  <div className="bg-green-100 p-2.5 rounded-xl"><Clock className="w-5 h-5 text-green-600" /></div>
-                  <div>
-                    <p className="font-bold text-sm">{t.estimatedTime}</p>
-                    <p className={`text-sm ${order.status === 'cancelled' || order.status === 'completed' ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>{order.estimatedTime}</p>
-                  </div>
-                </div>
-              )}
+              
+              <div className="pt-3 border-t border-border/50 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-400">{language === 'en' ? 'Download 3D Assets' : 'Tải tài nguyên 3D'}</p>
+                {paymentStatus !== 'paid' && (
+                  <p className="text-[11px] text-amber-600 font-medium">{language === 'en' ? 'Downloads unlock after payment is confirmed.' : 'Tải xuống mở khóa sau khi thanh toán được xác nhận.'}</p>
+                )}
+                {order.items.map((item) => {
+                  const match = products.find(p => p.id === item.id);
+                  const dlUrl = match?.downloadUrl || `https://poly.store/dl/${item.id}.zip`;
+                  const locked = paymentStatus !== 'paid';
+                  return (
+                    <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/60">
+                      <div>
+                        <p className="text-xs font-bold truncate max-w-[200px]">{language === 'en' ? item.nameEn || item.name : item.name}</p>
+                        <p className="text-[10px] text-muted-foreground">Formats: .GLB, .FBX, .OBJ, 4K PBR</p>
+                      </div>
+                      {locked ? (
+                        <span className="px-3 py-1.5 bg-muted text-muted-foreground rounded-lg text-xs font-bold shrink-0 cursor-not-allowed select-none">
+                          {language === 'en' ? 'Locked' : 'Đã khóa'}
+                        </span>
+                      ) : (
+                        <a
+                          href={dlUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-600/20 shrink-0"
+                        >
+                          Download 3D
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           </div>
 
@@ -239,8 +302,8 @@ export default function OrderDetail() {
               </div>
               <div className="mt-5 pt-5 border-t border-border space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t.subtotal}</span><span className="font-medium">{formatPrice(order.total)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t.shippingFee}</span><span className="font-medium text-green-600">{deliveryFee === 0 ? t.free : formatPrice(deliveryFee)}</span></div>
-                <div className="flex justify-between pt-3 border-t border-border/50"><span className="font-bold">{t.total}</span><span className="font-extrabold text-xl text-red-600">{formatPrice(order.total + deliveryFee)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t.shippingFee}</span><span className="font-medium text-green-500">{t.free}</span></div>
+                <div className="flex justify-between pt-3 border-t border-border/50"><span className="font-bold">{t.total}</span><span className="font-extrabold text-xl text-indigo-500">{formatPrice(order.total)}</span></div>
               </div>
             </motion.div>
 
@@ -251,13 +314,54 @@ export default function OrderDetail() {
                 <div>
                   <p className="font-semibold text-sm">{t.paymentMethod}</p>
                   <p className="text-sm text-muted-foreground">{payLabel}</p>
+                  <p className={`text-xs font-bold mt-1 ${paymentStatus === 'paid' ? 'text-green-600' : paymentStatus === 'pending_verification' ? 'text-amber-600' : 'text-red-600'}`}>{paymentLabel}</p>
                 </div>
               </div>
+              {order.paymentMethod === 'card' && paymentStatus !== 'paid' && order.status !== 'cancelled' && (
+                <div className="mt-5 pt-5 border-t border-border/50 text-center space-y-3">
+                  <div className="inline-flex items-center gap-2 text-sm font-bold text-primary"><QrCode className="w-4 h-4" /> VietQR chuyển khoản</div>
+                  <img src={buildVietQrUrl(order.id, payableTotal)} alt={`VietQR ${order.id}`} className="mx-auto w-56 h-56 rounded-2xl border bg-white object-contain" />
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>Ngân hàng: <span className="font-semibold text-foreground">TPBank</span></p>
+                    <p>Số tài khoản: <span className="font-semibold text-foreground">{getVietQrConfig().accountNo}</span></p>
+                    <p>Chủ tài khoản: <span className="font-semibold text-foreground">{getVietQrConfig().accountName}</span></p>
+                    <p>Nội dung: <span className="font-semibold text-foreground">{buildTransferInfo(order.id)}</span></p>
+                    <p>Số tiền: <span className="font-semibold text-foreground">{formatPrice(payableTotal)}</span></p>
+                  </div>
+                  <Button type="button" className="w-full bg-primary hover:bg-primary/90" disabled={actionLoading || paymentStatus === 'pending_verification'} onClick={async () => {
+                    setActionLoading(true);
+                    try {
+                      const u = await postPaymentSubmitted(order.id);
+                      setOrder(toOrder(u)); void refreshOrders();
+                      toast.success('Đã gửi yêu cầu xác nhận thanh toán');
+                    } catch { toast.error(t.orderError); }
+                    finally { setActionLoading(false); }
+                  }}>{paymentStatus === 'pending_verification' ? 'Đã gửi xác nhận' : 'Tôi đã thanh toán'}</Button>
+                </div>
+              )}
             </motion.div>
+
+            {order.status === 'ready' && paymentStatus === 'paid' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-green-50 dark:bg-green-950/30 rounded-2xl p-5 border border-green-200 dark:border-green-900">
+                <p className="font-bold text-green-800 dark:text-green-300 mb-2">Xác nhận đã nhận hàng</p>
+                <p className="text-sm text-green-700 dark:text-green-400 mb-4">Khi bạn xác nhận, đơn hàng sẽ được đánh dấu hoàn tất.</p>
+                <Button type="button" className="w-full bg-green-600 hover:bg-green-700" disabled={actionLoading} onClick={async () => {
+                  setActionLoading(true);
+                  try {
+                    const u = await postOrderReceived(order.id);
+                    setOrder(toOrder(u)); void refreshOrders();
+                    toast.success('Đã xác nhận nhận hàng');
+                  } catch (e) {
+                    if (e instanceof ApiError && e.code === 'payment_not_paid') toast.error('Đơn hàng chưa được xác nhận thanh toán');
+                    else toast.error(t.orderError);
+                  } finally { setActionLoading(false); }
+                }}>Tôi đã nhận hàng</Button>
+              </motion.div>
+            )}
 
             {/* Reorder */}
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="button"
-              className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-red-600/30 transition-all"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl font-bold shadow-lg shadow-primary/30 transition-all"
               onClick={() => { reorderFromOrder(order); toast.success(t.reorderAdded); navigate('/cart'); }}>
               {t.reorderButton}
             </motion.button>

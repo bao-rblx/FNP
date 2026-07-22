@@ -1,330 +1,213 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Clock,
-  FileText,
-  Package,
-  Percent,
-  Printer,
-  ScanLine,
   Search,
-  Sparkles,
   Tag,
-  TrendingUp,
+  Flame,
+  ChevronRight,
+  Box,
+  Star,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router';
+import { toast } from 'sonner';
 import { DesktopNav } from '../components/DesktopNav';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { products, type Product } from '../data/products';
-
-const SUGGESTED_IDS = ['print-bw', 'print-color', 'print-binding', 'paper-a4'] as const;
+import { getProducts, type ApiProduct } from '../lib/api';
+import { Card } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 
 export default function Home() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (err) {
+        console.error('Failed to load products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, []);
+
+  const handleCopyCoupon = () => {
+    if (!user) {
+      toast.error(language === 'en' ? 'You have to log in to use this deal' : 'Bạn phải đăng nhập để sử dụng ưu đãi này');
+      return;
+    }
+    void navigator.clipboard.writeText('POLY10');
+    toast.success(t.copiedToClipboard);
+  };
 
   const categories = [
     {
-      id: 'printing',
-      name: t.printingServices,
-      icon: Printer,
-      color: 'bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400',
-      description: t.printingDesc,
-    },
-    {
-      id: 'paper',
-      name: t.paperProducts,
-      icon: FileText,
-      color: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
-      description: t.paperDesc,
-    },
-    {
-      id: 'supplies',
-      name: t.officeSupplies,
-      icon: Package,
-      color: 'bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-400',
-      description: t.officeDesc,
-    },
-    {
-      id: 'services',
-      name: t.servicesCategory,
-      icon: ScanLine,
-      color: 'bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400',
-      description: t.servicesCategoryDesc,
-    },
-    {
-      id: 'goods',
-      name: t.goodsCategory,
-      icon: Sparkles,
-      color: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
-      description: t.goodsCategoryDesc,
+      id: 'models',
+      name: language === 'en' ? '3D Models' : 'Mô hình 3D',
+      icon: Box,
+      color: 'bg-violet-500/20 text-violet-300 border border-violet-500/30',
+      description: language === 'en' ? 'Interactive game-ready 3D GLB assets' : 'Tài nguyên GLB tương tác, sẵn sàng sử dụng',
     },
   ];
-
-  const ordersPath = user ? '/orders' : '/auth?return=/orders';
-
-  const quickActions = [
-    { label: t.reorder, icon: TrendingUp, to: ordersPath, hint: t.myOrders },
-    { label: t.trackOrder, icon: Package, to: ordersPath, hint: t.processing_status },
-  ];
-
-  const suggestedProducts = useMemo(() => {
-    const set = new Set<string>(SUGGESTED_IDS);
-    return products.filter((p) => set.has(p.id));
-  }, []);
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
     return products.filter((p) => {
-      const blob = [
-        p.name,
-        p.description,
-        p.nameEn,
-        p.descriptionEn,
-        p.category,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+      const blob = [p.name, p.description, p.nameEn, p.descriptionEn, p.category]
+        .filter(Boolean).join(' ').toLowerCase();
       return blob.includes(q);
-    });
-  }, [searchQuery]);
+    }).slice(0, 6);
+  }, [searchQuery, products]);
 
-  const productName = (p: Product) => (language === 'en' && p.nameEn ? p.nameEn : p.name);
-
-  const formatPrice = (price: number) => new Intl.NumberFormat('vi-VN').format(price) + 'đ';
-
-  const unitLabel = (p: Product) => {
-    if (p.unit.includes('trang')) return t.perPage;
-    if (p.unit.includes('cuốn')) return t.perBook;
-    if (p.unit.includes('bộ')) return t.perSet;
-    return t.perPiece;
+  const productName = (p: ApiProduct) => (language === 'en' && p.nameEn ? p.nameEn : p.name);
+  const formatPrice = (price: number) => {
+    if (price === 0) return t.free || (language === 'en' ? 'Free' : 'Miễn phí');
+    return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
   };
 
   return (
     <>
       <DesktopNav />
-      <div className="min-h-screen bg-background text-foreground pb-20 md:pb-8 md:pt-16">
-        <header className="relative overflow-hidden bg-gradient-to-br from-red-600 via-rose-600 to-orange-500 text-white">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800')] opacity-10 mix-blend-overlay bg-cover bg-center" />
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/20 blur-[80px] rounded-full" />
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="relative max-w-6xl mx-auto px-4 pt-10 pb-16 md:pt-16 md:pb-24 text-center md:text-left"
-          >
-
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-3 tracking-tight drop-shadow-sm">Flash Print N Ship</h1>
-            <p className="text-red-50 text-base md:text-lg max-w-md mx-auto md:mx-0 font-medium">Fast, reliable, and premium delivery across the VLU Campus.</p>
-          </motion.div>
+      <div className="min-h-screen bg-[#07080e] text-white pb-24 md:pb-12 md:pt-16">
+        <header className="relative bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.38),transparent_35%),linear-gradient(135deg,#06070d_0%,#111827_45%,#2e1065_100%)] text-white overflow-hidden border-b border-violet-400/20">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:44px_44px] opacity-40" />
+          <div className="max-w-6xl mx-auto px-4 py-16 md:py-24 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-12">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex-1">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-cyan-200">
+                  PolyStore
+                </div>
+                <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter uppercase">POLY<span className="text-violet-300">STORE</span></h1>
+                <p className="text-lg md:text-xl text-violet-50 font-medium max-w-xl opacity-90">
+                  {language === 'vi' ? 'Cửa hàng mô hình 3D tương tác dành cho game, hoạt hình và dự án sáng tạo.' : 'Interactive 3D model shopping for games, animation, and creative projects.'}
+                </p>
+              </motion.div>
+            </div>
+          </div>
         </header>
 
-        <div className="max-w-6xl mx-auto px-4 relative z-20">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="-mt-8 mb-8 md:-mt-10 md:mb-10"
-          >
-            <label className="sr-only" htmlFor="home-search">
-              {t.searchPlaceholder}
-            </label>
-            <div className="relative group">
+        <div className="max-w-6xl mx-auto px-4 -mt-10 relative z-20">
+          {/* Search Box */}
+          <Card className="p-2 rounded-3xl shadow-2xl border border-violet-400/20 bg-[#111827]/90 text-white backdrop-blur-md">
+            <div className="relative flex items-center">
+              <Search className="absolute left-5 w-5 h-5 text-muted-foreground" />
               <input
-                id="home-search"
-                type="search"
-                autoComplete="off"
-                placeholder={t.searchPlaceholder}
+                type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-card border-none w-full px-5 py-4 pl-12 pr-12 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 focus:ring-2 focus:ring-red-500 outline-none text-foreground placeholder:text-muted-foreground transition-all duration-300 group-hover:shadow-2xl"
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                className="w-full h-16 pl-14 pr-6 bg-transparent outline-none text-lg font-medium placeholder:text-slate-400"
               />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none group-focus-within:text-red-500 transition-colors" />
-              {searchQuery.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded-md transition-colors"
-                >
-                  {t.close}
-                </button>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-5 bg-muted p-1 rounded-full"><Clock className="w-4 h-4 rotate-45" /></button>
               )}
             </div>
-            {searchQuery.trim() && (
-              <div className="mt-2 bg-card rounded-lg shadow-md border border-border max-h-72 overflow-y-auto">
-                {searchResults.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground text-center">{t.homeSearchNoResults}</p>
-                ) : (
-                  <ul className="divide-y divide-border">
-                    {searchResults.map((p) => (
-                      <li key={p.id}>
-                        <Link
-                          to={`/product/${p.id}`}
-                          className="flex items-center gap-3 p-3 hover:bg-red-500/10 transition-colors"
-                          onClick={() => setSearchQuery('')}
-                        >
-                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
-                            <img src={p.image} alt="" className="w-full h-full object-cover" />
+            <AnimatePresence>
+              {searchQuery && (
+                <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-border/50">
+                  <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+                    {loading ? (
+                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+                    ) : searchResults.length === 0 ? (
+                      <p className="text-center py-8 text-muted-foreground">{t.homeSearchNoResults}</p>
+                    ) : (
+                      searchResults.map(p => (
+                        <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-3 hover:bg-violet-500/10 rounded-2xl transition-colors">
+                          <img src={p.image} className="w-12 h-12 rounded-xl object-cover" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm truncate">{productName(p)}</p>
+                             <p className="text-xs text-cyan-300 font-bold">{formatPrice(p.price)}</p>
                           </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <p className="font-medium text-sm truncate">{productName(p)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatPrice(p.price)} · {unitLabel(p)}
-                            </p>
-                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </motion.div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Card>
 
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="grid md:grid-cols-2 gap-4 mb-8"
-          >
-            <motion.div whileHover={{ scale: 1.02 }} className="rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-800 text-white p-6 md:p-8 shadow-xl relative overflow-hidden ring-1 ring-white/10">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2" />
-              <Tag className="w-12 h-12 opacity-10 absolute right-4 bottom-4" />
-              <p className="text-xs uppercase tracking-widest opacity-90 font-medium mb-2 inline-block bg-white/20 px-2 py-1 rounded-md">{t.limitedOffer}</p>
-              <h3 className="text-xl md:text-2xl font-bold mt-2">{t.homePromoTitle1}</h3>
-              <p className="text-sm opacity-95 mt-2 leading-relaxed max-w-sm">{t.homePromoBody1}</p>
-              <div className="mt-5 inline-block font-mono font-bold text-lg bg-black/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl border border-white/20">
-                {t.homePromoCode1}
-              </div>
-            </motion.div>
-            
-            <motion.div whileHover={{ scale: 1.02 }} className="rounded-3xl bg-gradient-to-br from-amber-500 to-rose-600 text-white p-6 md:p-8 shadow-xl relative overflow-hidden ring-1 ring-white/10">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2" />
-              <Percent className="w-12 h-12 opacity-10 absolute right-4 bottom-4" />
-              <p className="text-xs uppercase tracking-widest opacity-90 font-medium mb-2 inline-block bg-white/20 px-2 py-1 rounded-md">{t.popularThisWeek}</p>
-              <h3 className="text-xl md:text-2xl font-bold mt-2">{t.homePromoTitle2}</h3>
-              <p className="text-sm opacity-95 mt-2 leading-relaxed max-w-sm">{t.homePromoBody2}</p>
-              <div className="mt-5 inline-block font-mono font-bold text-lg bg-black/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl border border-white/20">
-                {t.homePromoCode2}
-              </div>
-            </motion.div>
-          </motion.div>
-
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-          >
-            <div className="md:col-span-2">
-                <h2 className="font-semibold text-lg md:text-2xl mb-4 tracking-tight">{t.ourServices}</h2>
-              <div className="space-y-4">
-                {categories.map((category) => {
-                  const Icon = category.icon;
-                  return (
-                    <motion.div whileHover={{ scale: 1.01 }} key={category.id}>
-                      <Link
-                        to={`/services/${category.id}`}
-                        className="block bg-card rounded-2xl p-5 md:p-6 shadow-sm shadow-black/5 dark:shadow-black/20 border border-border hover:shadow-lg hover:border-red-500/50 transition-all duration-300"
-                      >
-                        <div className="flex items-center gap-5">
-                          <div className={`${category.color} p-4 rounded-xl`}>
-                            <Icon className="w-6 h-6 md:w-8 md:h-8" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-base md:text-xl mb-1">{category.name}</h3>
-                            <p className="text-sm text-muted-foreground">{category.description}</p>
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-accent text-accent-foreground flex items-center justify-center shrink-0 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-6 md:col-span-2 lg:col-span-1">
-              <div>
-                <h2 className="font-semibold text-lg md:text-xl mb-4 tracking-tight">{t.quickActions}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                  {quickActions.map((action) => {
-                    const Icon = action.icon;
+          <div className="grid lg:grid-cols-3 gap-8 mt-12">
+            <div className="lg:col-span-2 space-y-12">
+              {/* Categories */}
+              <section>
+                <h2 className="text-2xl font-black mb-8 tracking-tighter uppercase flex items-center gap-2">
+                  <Flame className="w-6 h-6 text-cyan-300" />
+                  {t.ourServices}
+                </h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {categories.map((cat) => {
+                    const Icon = cat.icon;
                     return (
-                      <motion.div whileHover={{ scale: 1.02 }} key={action.label}>
-                        <Link
-                          to={action.to}
-                          className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow text-left block"
-                        >
-                          <Icon className="w-6 h-6 text-red-600 mb-3" />
-                          <p className="text-base font-semibold">{action.label}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{action.hint}</p>
-                        </Link>
-                      </motion.div>
+                      <Link key={cat.id} to={`/services/${cat.id}`}>
+                        <Card className="p-6 h-full rounded-[2rem] border-violet-400/20 bg-white/[0.04] text-white hover:bg-violet-500/10 transition-all duration-300 flex items-center gap-6 group hover:-translate-y-1">
+                          <div className={`${cat.color} p-4 rounded-2xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0`}><Icon className="w-8 h-8" /></div>
+                          <div className="flex flex-col justify-center">
+                            <h3 className="font-bold text-lg leading-snug">{cat.name}</h3>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{cat.description}</p>
+                          </div>
+                        </Card>
+                      </Link>
                     );
                   })}
                 </div>
-              </div>
 
-              <div className="bg-card rounded-xl p-4 shadow-sm border border-border">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-red-100 text-red-600">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-base">{t.homeSameDayTitle}</h2>
-                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{t.homeSameDayBody}</p>
-                  </div>
-                </div>
-                <Link
-                  to="/services/printing"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700"
-                >
-                  {t.printingServices}
-                  <span aria-hidden>→</span>
-                </Link>
-              </div>
-
-              <div>
-                <h2 className="font-semibold text-lg md:text-xl mb-1">{t.homeSuggestedTitle}</h2>
-                <p className="text-xs text-muted-foreground mb-3">{t.homeSuggestedSubtitle}</p>
-                <div className="bg-card rounded-xl p-4 shadow-sm border border-border space-y-3">
-                  {suggestedProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center gap-3 pb-3 border-b border-border last:border-0 last:pb-0"
-                    >
-                      <div className="w-12 h-12 bg-muted rounded-lg overflow-hidden shrink-0">
-                        <img src={p.image} alt="" className="w-full h-full object-cover" />
+              </section>
+              <section>
+                <h2 className="text-2xl font-black mb-6 tracking-tighter uppercase flex items-center gap-2">
+                  <Star className="w-6 h-6 text-violet-300" />
+                  {language === 'en' ? 'Featured 3D Models' : 'Mô hình 3D nổi bật'}
+                </h2>
+                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {products.filter((p) => p.category === 'models').slice(0, 6).map((p) => (
+                    <Link key={p.id} to={`/product/${p.id}`} className="group overflow-hidden rounded-[1.75rem] border border-violet-400/20 bg-white/[0.04] shadow-xl shadow-black/20 transition-all hover:-translate-y-1 hover:border-cyan-300/50">
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <img src={p.image} alt={productName(p)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#07080e] via-transparent to-transparent" />
+                        <div className="absolute left-4 top-4 rounded-full bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200 backdrop-blur-md">GLB</div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{productName(p)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatPrice(p.price)} {unitLabel(p)}
-                        </p>
+                      <div className="p-5">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">{p.subName}</p>
+                        <h3 className="mt-2 line-clamp-2 text-lg font-black leading-tight">{productName(p)}</h3>
+                        <p className="mt-3 text-cyan-200 font-black">{formatPrice(p.price)}</p>
                       </div>
-                      <Link
-                        to={`/product/${p.id}`}
-                        className="text-red-600 text-sm font-medium shrink-0"
-                      >
-                        {t.add}
-                      </Link>
-                    </div>
+                    </Link>
                   ))}
                 </div>
-              </div>
+              </section>
             </div>
-          </motion.div>
+
+            {/* Sidebar */}
+            <div className="space-y-8">
+              <Card className="p-6 rounded-[2rem] bg-white/[0.04] text-white border-violet-400/20 shadow-xl overflow-hidden relative group">
+                <div className="absolute inset-0 bg-violet-500/10 group-hover:bg-violet-500/15 transition-colors" />
+                <div className="relative z-10">
+                   <Tag className="w-10 h-10 text-cyan-300 mb-4" />
+                  <h3 className="text-xl font-bold mb-2">{t.homeFirstOrderTitle}</h3>
+                  <p className="text-sm text-muted-foreground mb-6">{t.homeFirstOrderBody}</p>
+                   <div className="bg-black/30 p-4 rounded-2xl border border-cyan-300/30 text-center font-mono text-xl font-bold tracking-widest text-cyan-200">
+                    POLY10
+                  </div>
+                  <Button 
+                     className="w-full mt-6 bg-violet-600 hover:bg-violet-500 h-12 rounded-xl font-bold text-white shadow-lg shadow-violet-500/20"
+                    onClick={handleCopyCoupon}
+                  >
+                    {language === 'vi' ? 'Nhận Ngay' : 'Claim Now'}
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </>

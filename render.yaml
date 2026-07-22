@@ -1,0 +1,28 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Free web service. SQLite lives on the ephemeral container disk, so
+# user-created data resets on each redeploy and after idle spin-down.
+# The admin user and product catalog re-seed on startup, so the app
+# always comes back up functional.
+services:
+  - type: web
+    name: flashnprint
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Pinned across restarts within a deploy so existing logins/JWTs
+      # stay valid. Render generates a strong value once and keeps it.
+      - key: JWT_SECRET
+        generateValue: true
+      # Set these two in the Render dashboard (Environment tab) so the
+      # seeded admin account has credentials you control.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

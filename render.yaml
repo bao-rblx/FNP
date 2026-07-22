@@ -9,10 +9,12 @@ services:
     runtime: node
     plan: free
     region: singapore
-    # Render sets NODE_ENV=production, which makes `npm install` skip
-    # devDependencies — but vite/tailwind live there and are needed to
-    # build. --include=dev forces them in for the build step only.
-    buildCommand: npm install --include=dev && npm run build
+    # `npm ci` wipes node_modules and installs exactly from the lockfile,
+    # which defeats Render's stale build cache (a cached node_modules from
+    # an earlier commit made `npm install` skip newly-added deps like three).
+    # --include=dev forces devDependencies (vite/tailwind) in for the build,
+    # since Render sets NODE_ENV=production which would otherwise skip them.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
